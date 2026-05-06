@@ -59,6 +59,7 @@ body{font-family:'Instrument Sans',sans-serif;background:var(--cream);color:var(
   <button class="btn btn-t" id="fBtn" onclick="doFetch()"><span id="fTxt">Hent tilbud</span><div class="spin" id="fSpin" style="display:none"></div></button>
   <button class="btn btn-g" onclick="fetchAll()">Alle madvarer</button>
   <button class="btn btn-g" onclick="clearOffers()">Ryd</button>
+  <button class="btn btn-g" id="refreshBtn" onclick="manualRefresh()">🔄 Opdater database</button>
 </div>
 <div class="quick-search">
   <button class="qs-btn" onclick="qs('kylling')">🐔 Kylling</button>
@@ -165,6 +166,26 @@ Auth.fetch('/api/offers/status').then(r=>r&&r.json()).then(d=>{
 function setInfo(cls,txt){const el=document.getElementById('apiInfo');if(el){el.className='info '+cls;el.textContent=txt;}}
 function bl(on,lbl){const b=document.getElementById('fBtn');const t=document.getElementById('fTxt');const s=document.getElementById('fSpin');b.disabled=on;t.textContent=lbl;s.style.display=on?'block':'none';}
 function setSF(sf){S.sf=sf;renderOffers();}
+async function manualRefresh(){
+  const btn=document.getElementById('refreshBtn');
+  btn.disabled=true; btn.textContent='⏳ Henter...';
+  setInfo('i-amb','Henter tilbud fra eTilbudsavis — ca. 30 sek...');
+  try{
+    const adminKey=sessionStorage.getItem('admin_key')||prompt('Indtast admin-nøgle:');
+    if(!adminKey){btn.disabled=false;btn.textContent='🔄 Opdater database';return;}
+    sessionStorage.setItem('admin_key',adminKey);
+    const r=await Auth.fetch('/api/offers/refresh',{method:'POST',headers:{'x-admin-key':adminKey}});
+    const d=await r.json();
+    if(d.success){
+      setInfo('i-grn','✅ '+d.count+' tilbud hentet og gemt i database!');
+      await fetchViaAI('');
+    } else {
+      setInfo('i-red','Fejl: '+(d.error||'Ukendt'));
+    }
+  }catch(e){setInfo('i-red','Fejl: '+e.message);}
+  btn.disabled=false; btn.textContent='🔄 Opdater database';
+}
+
 function clearOffers(){S.offers=S.offers.filter(o=>o.src!=='ai');save();renderOffers();}
 const em=n=>{const i=n.toLowerCase();if(/kylling/.test(i))return'🐔';if(/laks|fisk|tun/.test(i))return'🐟';if(/okse|bøf|hakket/.test(i))return'🥩';if(/svin|flæsk|bacon/.test(i))return'🐷';if(/pasta|spaghetti/.test(i))return'🍝';if(/ris/.test(i))return'🍚';if(/mælk/.test(i))return'🥛';if(/æg/.test(i))return'🥚';if(/ost/.test(i))return'🧀';if(/kartoffel/.test(i))return'🥔';if(/brød/.test(i))return'🍞';return'🏷';};
 function renderOffers(){

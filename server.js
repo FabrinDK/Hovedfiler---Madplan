@@ -304,13 +304,16 @@ async function fetchAndSaveOffers() {
         { headers: { 'Accept': 'application/json', 'X-Api-Av': '0.3.0' } }
       );
 
+      console.log(`eTilbudsavis svar for "${term}": ${r.status}`);
       if (!r.ok) {
-        console.warn(`eTilbudsavis fejlede for "${term}": ${r.status}`);
+        const errText = await r.text();
+        console.warn(`eTilbudsavis fejlede for "${term}": ${r.status} — ${errText.substring(0,200)}`);
         continue;
       }
 
       const data = await r.json();
       const list = Array.isArray(data) ? data : (data.results || []);
+      console.log(`  → ${list.length} resultater for "${term}"`);
 
       list.forEach(o => {
         const id = o.id || Math.random().toString(36).substr(2);
