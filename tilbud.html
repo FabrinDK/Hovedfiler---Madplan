@@ -114,13 +114,40 @@ async function fetchAll(){
 }
 function qs(t){document.getElementById('oSearch').value=t;doFetch();}
 async function fetchViaAI(query){
-  const raw=await claude(`Generer 15-20 realistiske danske supermarkedstilbud for: "${query}". Fordel på Netto, Lidl, Rema 1000, Føtex, Bilka. Svar KUN JSON array:\n[{"name":"Kyllingebryster 1kg","price":42.95,"orig":65.00,"pct":34,"store":"Netto","unit":"1kg"}]`);
-  const list=JSON.parse(raw.replace(/```json|```/g,'').trim());
-  const norm=list.map((o,i)=>({id:'ai_'+Date.now()+'_'+i,name:o.name||'',price:parseFloat(o.price)||0,orig:o.orig?parseFloat(o.orig):null,pct:o.pct?parseInt(o.pct):null,store:o.store||'Ukendt',unit:o.unit||'',src:'ai'})).filter(o=>o.name&&o.price>0);
-  const old=S.offers.filter(o=>o.src!=='ai');
-  const map=new Map();[...old,...norm].forEach(o=>map.set(o.id,o));
-  S.offers=[...map.values()];save();renderOffers();
-  setInfo('i-grn',`✅ ${norm.length} tilbud hentet for "${query}". Priser gemt i prisdatabase.`);
+  // Hent rigtige live tilbud fra eTilbudsavis via server
+  const zip = document.getElementById('oZip')?.value || '2770';
+  const params = new URLSearchParams({ query, zip });
+  const r = await Auth.fetch('/api/offers?' + params);
+  if (!r || !r.ok) throw new Error('Tilbuds-API fejlede');
+  const data = await r.json();
+  const list = Array.isArray(data) ? data : (data.results || []);
+
+  const norm = list.map(o => ({
+    id: o.id || Math.random().toString(36).substr(2),
+    name: o.heading || o.name || '',
+    price: o.pricing?.price?.amount != null ? o.pricing.price.amount / 100 : 0,
+    orig: o.pricing?.pre_price?.amount != null ? o.pricing.pre_price.amount / 100 : null,
+    pct: o.pricing?.discount != null ? Math.round(o.pricing.discount) : null,
+    store: o.branding?.name || o.dealer?.name || 'Ukendt',
+    img: o.images?.view || o.images?.thumb || null,
+    unit: o.quantity?.unit || '',
+    till: o.run_till || null,
+    src: 'etilbudsavis'
+  })).filter(o => o.name && o.price > 0);
+
+  const old = S.offers.filter(o => o.src !== 'etilbudsavis');
+  const map = new Map();
+  [...old, ...norm].forEach(o => map.set(o.id, o));
+  S.offers = [...map.values()];
+
+  // Gem tilbudspriser i prisdatabase
+  norm.forEach(o => {
+    const k = o.name.toLowerCase().replace(/[^a-zæøå0-9 ]/g,'').trim().slice(0,40);
+    if (k.length > 2) S.priceDB[k] = {price:o.price,unit:o.unit||'stk',store:o.store,updated:new Date().toLocaleDateString('da-DK'),sale:true};
+  });
+
+  save(); renderOffers();
+  setInfo('i-grn', `✅ ${norm.length} rigtige tilbud hentet fra eTilbudsavis for "${query}".`);
 }
 function setInfo(cls,txt){const el=document.getElementById('apiInfo');if(el){el.className='info '+cls;el.textContent=txt;}}
 function bl(on,lbl){const b=document.getElementById('fBtn');const t=document.getElementById('fTxt');const s=document.getElementById('fSpin');b.disabled=on;t.textContent=lbl;s.style.display=on?'block':'none';}
@@ -138,7 +165,12 @@ function renderOffers(){
   if(!offs.length){document.getElementById('offGrid').innerHTML='<div style="grid-column:1/-1;color:var(--ink3);font-size:14px;padding:40px;text-align:center">Ingen tilbud. Prøv en søgning.</div>';return;}
   document.getElementById('offGrid').innerHTML=offs.map(o=>`
     <div class="offer-card">
-      <div class="oc-ph">${em(o.name)}</div>
+      ${o.img
+        ? `<img src="${o.img}" alt="${o.name}" style="width:100%;height:100px;object-fit:contain;background:var(--cream);padding:6px;" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+        : ''}
+      <div class="oc-ph" style="${o.img?'display:none':''}">
+        ${em(o.name)}
+      </div>
       <div class="oc-body">
         <div class="oc-store">${o.store}</div>
         <div class="oc-name">${o.name}</div>
@@ -147,7 +179,8 @@ function renderOffers(){
           ${o.orig?`<span class="oc-old">${o.orig.toFixed(2).replace('.',',')} kr</span>`:''}
           ${o.pct?`<span class="oc-pct">-${o.pct}%</span>`:''}
         </div>
-        ${o.unit?`<div style="font-size:11px;color:var(--ink3);margin-top:3px">${o.unit}</div>`:''}
+        ${o.unit?`<div style="font-size:11px;color:var(--ink3);margin-top:2px">${o.unit}</div>`:''}
+        ${o.till?`<div style="font-size:10px;color:var(--ink3);margin-top:3px">Gælder t/m ${new Date(o.till).toLocaleDateString('da-DK')}</div>`:''}
       </div>
     </div>`).join('');
 }
