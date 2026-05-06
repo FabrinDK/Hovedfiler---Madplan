@@ -203,7 +203,7 @@ function renderStatus(){
 }
 
 async function claude(prompt,max=4000){
-  const r=await fetch('/api/claude',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:max,messages:[{role:'user',content:prompt}]})});
+  const r=await fetch('/api/claude',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:max,messages:[{role:'user',content:prompt}]})});
   const d=await r.json();
   if(!r.ok){
     const msg=d?.error?.message||d?.error||JSON.stringify(d);
