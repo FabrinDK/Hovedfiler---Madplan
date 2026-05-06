@@ -107,31 +107,34 @@ async function doFetch(){
   bl(false,'Hent tilbud');
 }
 async function fetchAll(){
-  bl(true,'Henter alle…');setInfo('i-amb','Henter alle madvarer — et øjeblik…');
-  try{await fetchViaAI('kylling oksekød laks svinekød pasta ris grøntsager mælk æg ost frugt kartofler');}
+  bl(true,'Henter alle…');setInfo('i-amb','Henter alle tilbud fra database…');
+  try{await fetchViaAI('');}
   catch(e){setInfo('i-red','Fejl: '+e.message);}
   bl(false,'Hent tilbud');
 }
 function qs(t){document.getElementById('oSearch').value=t;doFetch();}
 async function fetchViaAI(query){
-  // Hent rigtige live tilbud fra eTilbudsavis via server
-  const zip = document.getElementById('oZip')?.value || '2770';
-  const params = new URLSearchParams({ query, zip });
+  // Hent tilbud fra vores database (opdateres automatisk hver nat)
+  const params = new URLSearchParams();
+  if (query && query !== 'kylling oksekød laks svinekød pasta ris grøntsager mælk æg ost frugt kartofler') {
+    params.set('query', query);
+  }
+
   const r = await Auth.fetch('/api/offers?' + params);
   if (!r || !r.ok) throw new Error('Tilbuds-API fejlede');
-  const data = await r.json();
-  const list = Array.isArray(data) ? data : (data.results || []);
+  const rows = await r.json();
 
-  const norm = list.map(o => ({
-    id: o.id || Math.random().toString(36).substr(2),
-    name: o.heading || o.name || '',
-    price: o.pricing?.price?.amount != null ? o.pricing.price.amount / 100 : 0,
-    orig: o.pricing?.pre_price?.amount != null ? o.pricing.pre_price.amount / 100 : null,
-    pct: o.pricing?.discount != null ? Math.round(o.pricing.discount) : null,
-    store: o.branding?.name || o.dealer?.name || 'Ukendt',
-    img: o.images?.view || o.images?.thumb || null,
-    unit: o.quantity?.unit || '',
-    till: o.run_till || null,
+  // Normaliser fra database-format
+  const norm = rows.map(o => ({
+    id: o.id,
+    name: o.name,
+    price: parseFloat(o.price),
+    orig: o.orig_price ? parseFloat(o.orig_price) : null,
+    pct: o.pct_off || null,
+    store: o.store || 'Ukendt',
+    img: o.img_url || null,
+    unit: o.unit || '',
+    till: o.valid_till || null,
     src: 'etilbudsavis'
   })).filter(o => o.name && o.price > 0);
 
@@ -140,14 +143,23 @@ async function fetchViaAI(query){
   [...old, ...norm].forEach(o => map.set(o.id, o));
   S.offers = [...map.values()];
 
-  // Gem tilbudspriser i prisdatabase
+  // Gem i lokal prisdatabase
   norm.forEach(o => {
     const k = o.name.toLowerCase().replace(/[^a-zæøå0-9 ]/g,'').trim().slice(0,40);
     if (k.length > 2) S.priceDB[k] = {price:o.price,unit:o.unit||'stk',store:o.store,updated:new Date().toLocaleDateString('da-DK'),sale:true};
   });
 
   save(); renderOffers();
-  setInfo('i-grn', `✅ ${norm.length} rigtige tilbud hentet fra eTilbudsavis for "${query}".`);
+// Vis status ved indlæsning
+Auth.fetch('/api/offers/status').then(r=>r&&r.json()).then(d=>{
+  if(d&&d.active_offers>0){
+    const last=d.last_fetch?new Date(d.last_fetch.fetched_at).toLocaleString('da-DK'):'ukendt';
+    setInfo('i-grn',`Database har ${d.active_offers} aktive tilbud — sidst opdateret: ${last}`);
+  }
+}).catch(()=>{});
+
+  const label = query && query.length < 30 ? ` for "${query}"` : '';
+  setInfo('i-grn', `✅ ${norm.length} tilbud hentet${label} — opdateres automatisk hver nat.`);
 }
 function setInfo(cls,txt){const el=document.getElementById('apiInfo');if(el){el.className='info '+cls;el.textContent=txt;}}
 function bl(on,lbl){const b=document.getElementById('fBtn');const t=document.getElementById('fTxt');const s=document.getElementById('fSpin');b.disabled=on;t.textContent=lbl;s.style.display=on?'block':'none';}
