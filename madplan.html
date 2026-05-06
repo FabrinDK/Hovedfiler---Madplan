@@ -191,6 +191,13 @@ summary:hover{background:#F0EBE2;}
 </div>
 
 <script>
+
+  // ── KRÆV LOGIN ──
+  (async () => {
+    const user = await Auth.requireLogin();
+    if (!user) return; // requireLogin redirecter til login.html
+  })();
+
 let S = {priceDB:{},offers:[],prefs:{dislikes:[],favorites:[],allergies:'',diet:'',history:[]},plan:null};
 function save(){try{localStorage.setItem('mp6',JSON.stringify(S));}catch(e){}}
 function load(){try{const d=localStorage.getItem('mp6');if(d)S={...S,...JSON.parse(d)};}catch(e){}renderStatus();if(S.plan){renderPlan(S.plan);document.getElementById('quickLinks').style.display='none';}}
@@ -203,7 +210,7 @@ function renderStatus(){
 }
 
 async function claude(prompt,max=4000){
-  const r=await fetch('/api/claude',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:max,messages:[{role:'user',content:prompt}]})});
+  const r=await Auth.fetch('/api/claude',{method:'POST',headers:{'Content-Type':'application/json','x-app-key':APP_KEY},body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:max,messages:[{role:'user',content:prompt}]})});
   const d=await r.json();
   if(!r.ok){
     const msg=d?.error?.message||d?.error||JSON.stringify(d);
@@ -283,7 +290,12 @@ function renderPlan(plan){
 load();
 </script>
 
+<script src="auth.js"></script>
 <script src="nav.js"></script>
-<script>buildNav('madplan');</script>
+<script>
+// ── APP KEY (skal matche APP_KEY i Railway Variables) ──
+const APP_KEY = 'INDSAET-DIN-APP-KEY-HER';
+
+buildNav('madplan');</script>
 </body>
 </html>

@@ -30,14 +30,14 @@ body {
 /* ── HERO ── */
 .hero {
   background: var(--ink);
-  padding: 64px 40px 60px;
-  display: flex;
-  flex-direction: column;
+  padding: 52px 40px 48px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
   align-items: center;
-  text-align: center;
-  min-height: 320px;
+  min-height: 380px;
 }
-.hero-left { max-width: 600px; width: 100%; }
+.hero-left { max-width: 480px; }
 .hero-eyebrow {
   font-size: 11px; font-weight: 700;
   text-transform: uppercase; letter-spacing: .1em;
@@ -52,9 +52,9 @@ body {
 .hero-title em { color: #E8916A; font-style: italic; }
 .hero-sub {
   font-size: 15px; color: rgba(255,255,255,.55);
-  line-height: 1.7; margin-bottom: 28px; max-width: 480px; margin-left: auto; margin-right: auto;
+  line-height: 1.7; margin-bottom: 28px; max-width: 360px;
 }
-.hero-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .btn-hero-primary {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 13px 24px;
@@ -77,6 +77,8 @@ body {
 }
 .btn-hero-ghost:hover { border-color: rgba(255,255,255,.5); color: #fff; }
 
+/* Hero week preview */
+.hero-right {}
 .hero-week-label {
   font-size: 11px; font-weight: 700;
   text-transform: uppercase; letter-spacing: .07em;
@@ -124,143 +126,6 @@ body {
 }
 .hb-sale { background: rgba(46,90,61,.6); color: #86efac; }
 .hb-rest { background: rgba(180,83,9,.4); color: #fcd34d; }
-
-
-/* ── HERO SEARCH ── */
-.hero-search-wrap {
-  width: 100%;
-  max-width: 520px;
-  margin: 28px auto 0;
-  position: relative;
-}
-.hero-search-input {
-  width: 100%;
-  padding: 15px 56px 15px 20px;
-  border-radius: 50px;
-  border: none;
-  font-family: 'Instrument Sans', sans-serif;
-  font-size: 15px;
-  color: var(--ink);
-  background: rgba(255,255,255,0.95);
-  outline: none;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.25);
-  transition: box-shadow .2s;
-}
-.hero-search-input:focus {
-  box-shadow: 0 4px 32px rgba(232,145,106,0.35);
-}
-.hero-search-btn {
-  position: absolute;
-  right: 6px; top: 50%;
-  transform: translateY(-50%);
-  width: 42px; height: 42px;
-  border-radius: 50%;
-  background: var(--terra);
-  border: none; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: background .15s;
-  flex-shrink: 0;
-}
-.hero-search-btn:hover { background: var(--terra-d); }
-.hero-search-btn svg { width: 18px; height: 18px; color: #fff; }
-.hero-search-tags {
-  display: flex; gap: 8px; flex-wrap: wrap;
-  justify-content: center;
-  margin-top: 12px;
-}
-.hero-search-tag {
-  padding: 5px 14px;
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 30px;
-  font-size: 12px; font-weight: 500;
-  color: rgba(255,255,255,0.65);
-  cursor: pointer;
-  font-family: 'Instrument Sans', sans-serif;
-  transition: all .15s;
-}
-.hero-search-tag:hover {
-  background: rgba(255,255,255,0.18);
-  color: rgba(255,255,255,0.9);
-}
-
-/* ── SEARCH RESULTS PANEL ── */
-#searchPanel {
-  display: none;
-  max-width: 1100px;
-  margin: 0 auto 40px;
-  padding: 0 32px;
-}
-.sp-header {
-  display: flex; align-items: center;
-  justify-content: space-between;
-  margin-bottom: 18px; flex-wrap: wrap; gap: 10px;
-}
-.sp-title {
-  font-family: 'Playfair Display', serif;
-  font-size: 1.4rem; font-weight: 700; color: var(--ink);
-}
-.sp-close {
-  font-size: 13px; font-weight: 600; color: var(--terra);
-  cursor: pointer; background: none; border: none;
-  font-family: 'Instrument Sans', sans-serif;
-  padding: 0;
-}
-.sp-close:hover { text-decoration: underline; }
-.sp-loading {
-  display: flex; align-items: center; gap: 12px;
-  padding: 28px 0; color: var(--ink2); font-size: 14px;
-}
-.sp-spin {
-  width: 20px; height: 20px;
-  border: 2px solid var(--bdr2);
-  border-top-color: var(--terra);
-  border-radius: 50%;
-  animation: spRot .7s linear infinite;
-  flex-shrink: 0;
-}
-@keyframes spRot { to { transform: rotate(360deg); } }
-.sp-offers-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.sp-offer-card {
-  background: var(--warm);
-  border: 1px solid var(--bdr);
-  border-radius: var(--r);
-  overflow: hidden;
-  transition: all .15s;
-}
-.sp-offer-card:hover { box-shadow: 0 4px 14px rgba(28,25,23,.1); transform: translateY(-2px); }
-.sp-card-top {
-  padding: 12px 14px 10px;
-  border-bottom: 1px solid var(--bdr);
-  background: var(--cream);
-  display: flex; justify-content: space-between; align-items: center;
-}
-.sp-store-name { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ink2); }
-.sp-on-offer { font-size: 10px; font-weight: 700; background: var(--forest-l); color: var(--forest); padding: 2px 7px; border-radius: 8px; }
-.sp-no-offer { font-size: 10px; font-weight: 700; background: var(--cream); color: var(--ink3); padding: 2px 7px; border-radius: 8px; border: 1px solid var(--bdr2); }
-.sp-card-body { padding: 12px 14px 14px; }
-.sp-product-name { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 8px; line-height: 1.3; }
-.sp-price-row { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; }
-.sp-price { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; color: var(--terra); }
-.sp-unit { font-size: 12px; color: var(--ink3); }
-.sp-orig { font-size: 12px; color: var(--ink3); text-decoration: line-through; }
-.sp-save { font-size: 10px; font-weight: 700; background: var(--forest-l); color: var(--forest); padding: 2px 7px; border-radius: 8px; margin-top: 5px; display: inline-block; }
-.sp-valid { font-size: 11px; color: var(--ink3); margin-top: 6px; }
-.sp-tip {
-  background: var(--gold-l);
-  border: 1px solid #FDE68A;
-  border-radius: var(--r-sm);
-  padding: 12px 16px;
-  font-size: 13px; color: var(--gold); line-height: 1.6;
-}
-.sp-tip strong { color: var(--gold); }
-.sp-no-results { padding: 32px 0; text-align: center; color: var(--ink3); font-size: 14px; }
-.sp-no-results .sp-nr-icon { font-size: 36px; margin-bottom: 10px; }
 
 /* ── MAIN CONTENT ── */
 .main { max-width: 1100px; margin: 0 auto; padding: 40px 32px 60px; }
@@ -594,6 +459,7 @@ body {
 /* RESPONSIVE */
 @media(max-width:900px) {
   .hero { grid-template-columns: 1fr; min-height: auto; padding: 36px 24px; }
+  .hero-right { display: none; }
   .hero-title { font-size: 2.2rem; }
   .status-row { grid-template-columns: 1fr 1fr; }
   .week-strip { grid-template-columns: repeat(4, 1fr); }
@@ -643,32 +509,11 @@ body {
       </a>
     </div>
   </div>
-
-  <!-- Search bar -->
-  <div class="hero-search-wrap">
-    <input class="hero-search-input" id="heroSearchInput" type="text" placeholder="Søg produkt eller mærke… fx Marabou, Lurpak, kylling" onkeydown="if(event.key==='Enter')heroSearch()">
-    <button class="hero-search-btn" onclick="heroSearch()" aria-label="Søg">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    </button>
-  </div>
-  <div class="hero-search-tags">
-    <button class="hero-search-tag" onclick="quickSearch('Marabou')">🍫 Marabou</button>
-    <button class="hero-search-tag" onclick="quickSearch('Lurpak smør')">🧈 Lurpak</button>
-    <button class="hero-search-tag" onclick="quickSearch('kyllingebryster')">🐔 Kylling</button>
-    <button class="hero-search-tag" onclick="quickSearch('laksefillet')">🐟 Laks</button>
-    <button class="hero-search-tag" onclick="quickSearch('Pepsi Max')">🥤 Pepsi Max</button>
-    <button class="hero-search-tag" onclick="quickSearch('æg')">🥚 Æg</button>
+  <div class="hero-right">
+    <div class="hero-week-label">Denne uges madplan</div>
+    <div class="hero-week-grid" id="heroWeekGrid"></div>
   </div>
 </section>
-
-<!-- ── SEARCH RESULTS ── -->
-<div id="searchPanel">
-  <div class="sp-header">
-    <div class="sp-title" id="spTitle">Søgeresultater</div>
-    <button class="sp-close" onclick="closeSearch()">✕ Luk søgning</button>
-  </div>
-  <div id="spContent"></div>
-</div>
 
 <!-- ── MAIN ── -->
 <main class="main">
@@ -790,6 +635,13 @@ body {
 </main>
 
 <script>
+
+  // ── KRÆV LOGIN ──
+  (async () => {
+    const user = await Auth.requireLogin();
+    if (!user) return; // requireLogin redirecter til login.html
+  })();
+
 // ── DATA FROM LOCALSTORAGE ──
 let S = { priceDB:{}, offers:[], prefs:{dislikes:[],favorites:[],history:[]}, plan:null, shopList:{} };
 try { const d = localStorage.getItem('mp6'); if(d) S = {...S, ...JSON.parse(d)}; } catch(e) {}
@@ -1018,127 +870,9 @@ recGrid.innerHTML = MOCK_RECIPES.map((r, i) => `
       </div>
     </div>
   </a>`).join('');
-
-
-// ── HERO PRODUCT SEARCH ──────────────────────────────────────
-async function heroSearch() {
-  const q = document.getElementById('heroSearchInput').value.trim();
-  if (!q) return;
-  showSearchPanel(q);
-}
-function quickSearch(q) {
-  document.getElementById('heroSearchInput').value = q;
-  showSearchPanel(q);
-}
-function closeSearch() {
-  document.getElementById('searchPanel').style.display = 'none';
-  document.getElementById('heroSearchInput').value = '';
-}
-
-async function showSearchPanel(query) {
-  const panel = document.getElementById('searchPanel');
-  const content = document.getElementById('spContent');
-  const title = document.getElementById('spTitle');
-  panel.style.display = 'block';
-  title.textContent = 'Søger efter "' + query + '"…';
-  content.innerHTML = '<div class="sp-loading"><div class="sp-spin"></div>Tjekker tilbud hos Netto, Lidl, Rema 1000, Føtex, Bilka…</div>';
-  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-  const prompt = `Du er en dansk tilbudsekspert med adgang til internettet. Søg efter aktuelle tilbud på: "${query}" i danske supermarkeder (Rema 1000, Netto, Lidl, Aldi, Bilka, Føtex, Meny, SuperBrugsen, Normal, m.fl.).
-
-Svar UDELUKKENDE med valid JSON uden markdown backticks:
-{
-  "query": "${query}",
-  "found": true,
-  "offers": [
-    {
-      "store": "Netto",
-      "product": "Præcis produktnavn og størrelse",
-      "price": "29,95",
-      "unit": "100g / stk / kg",
-      "orig_price": "44,95",
-      "savings": "Spar 15 kr",
-      "valid_until": "12/5 eller Ukendt",
-      "notes": "Kræver app / maks 3 stk"
-    }
-  ],
-  "stores_without_offer": ["Bilka", "Meny"],
-  "normal_price_range": "Normalt ca. 40-50 kr",
-  "tip": "Praktisk indkøbstip om dette produkt"
-}
-
-Hvis ingen aktuelle tilbud: sæt found=false og tilføj "message" med forklaring + normal prisniveau.`;
-
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1500,
-        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error.message);
-    const textBlock = data.content.find(b => b.type === 'text');
-    if (!textBlock) throw new Error('Intet svar');
-    const clean = textBlock.text.replace(/```json\n?|\n?```/g, '').trim();
-    const result = JSON.parse(clean);
-    renderSearchResults(result, query);
-  } catch(e) {
-    content.innerHTML = '<div class="sp-no-results"><div class="sp-nr-icon">⚠️</div>Søgning fejlede: ' + e.message + '</div>';
-  }
-  title.textContent = 'Tilbud på "' + query + '"';
-}
-
-function renderSearchResults(r, query) {
-  const content = document.getElementById('spContent');
-  if (!r.found || !r.offers || r.offers.length === 0) {
-    content.innerHTML = \`
-      <div class="sp-no-results">
-        <div class="sp-nr-icon">🏷️</div>
-        <div style="font-size:15px;color:var(--ink2);margin-bottom:6px">\${r.message || 'Ingen aktuelle tilbud fundet på "' + query + '"'}</div>
-        \${r.normal_price_range ? '<div style="font-size:13px;color:var(--ink3)">' + r.normal_price_range + '</div>' : ''}
-      </div>
-      \${r.tip ? '<div class="sp-tip"><strong>💡 Tip:</strong> ' + r.tip + '</div>' : ''}\`;
-    return;
-  }
-
-  const offerCards = r.offers.map(o => \`
-    <div class="sp-offer-card">
-      <div class="sp-card-top">
-        <span class="sp-store-name">\${o.store}</span>
-        <span class="sp-on-offer">🏷 Tilbud</span>
-      </div>
-      <div class="sp-card-body">
-        <div class="sp-product-name">\${o.product}</div>
-        <div class="sp-price-row">
-          <span class="sp-price">\${o.price} kr</span>
-          <span class="sp-unit">\${o.unit || ''}</span>
-          \${o.orig_price ? '<span class="sp-orig">' + o.orig_price + ' kr</span>' : ''}
-        </div>
-        \${o.savings ? '<span class="sp-save">💰 ' + o.savings + '</span>' : ''}
-        \${o.valid_until && o.valid_until !== 'Ukendt' ? '<div class="sp-valid">📅 Gyldig til ' + o.valid_until + '</div>' : ''}
-        \${o.notes ? '<div class="sp-valid">' + o.notes + '</div>' : ''}
-      </div>
-    </div>\`).join('');
-
-  const noOfferSection = r.stores_without_offer && r.stores_without_offer.length
-    ? \`<div style="margin-bottom:12px;font-size:13px;color:var(--ink3)">
-        Ingen tilbud hos: \${r.stores_without_offer.map(s => '<span style="background:var(--cream);padding:2px 9px;border-radius:12px;border:1px solid var(--bdr2);margin-right:5px;display:inline-block">' + s + '</span>').join('')}
-      </div>\` : '';
-
-  content.innerHTML = \`
-    \${r.normal_price_range ? '<div style="font-size:13px;color:var(--ink3);margin-bottom:12px">' + r.normal_price_range + '</div>' : ''}
-    <div class="sp-offers-grid">\${offerCards}</div>
-    \${noOfferSection}
-    \${r.tip ? '<div class="sp-tip"><strong>💡 Tip:</strong> ' + r.tip + '</div>' : ''}\`;
-}
-
 </script>
 
+<script src="auth.js"></script>
 <script src="nav.js"></script>
 <script>buildNav('index');</script>
 </body>

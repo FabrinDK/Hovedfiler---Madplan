@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Log ind — Madplanen</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--cream:#F7F3EC;--warm:#FDFAF5;--ink:#1C1917;--ink2:#57534E;--ink3:#A8A29E;--terra:#C2522A;--terra-l:#FBEEE8;--forest:#2D5A3D;--bdr:rgba(28,25,23,0.12);--bdr2:rgba(28,25,23,0.20);--r:12px;--r-sm:8px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Instrument Sans',sans-serif;background:var(--cream);color:var(--ink);min-height:100vh;display:grid;grid-template-columns:1fr 1fr;}
+
+/* LEFT */
+.left{background:var(--ink);padding:60px;display:flex;flex-direction:column;justify-content:space-between;min-height:100vh;}
+.left-logo{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:700;color:#fff;letter-spacing:-.02em;}
+.left-logo em{color:#E8916A;font-style:italic;}
+.left-main{}
+.left-title{font-family:'Playfair Display',serif;font-size:2.8rem;font-weight:700;color:#fff;line-height:1.1;letter-spacing:-.03em;margin-bottom:20px;}
+.left-title em{color:#E8916A;font-style:italic;font-weight:400;}
+.left-sub{font-size:15px;color:rgba(255,255,255,.45);line-height:1.7;max-width:340px;}
+.left-features{display:flex;flex-direction:column;gap:12px;margin-top:32px;}
+.feature{display:flex;align-items:center;gap:12px;font-size:14px;color:rgba(255,255,255,.55);}
+.feature-dot{width:6px;height:6px;border-radius:50%;background:#E8916A;flex-shrink:0;}
+.left-meta{font-size:12px;color:rgba(255,255,255,.2);}
+
+/* RIGHT */
+.right{background:var(--warm);padding:60px;display:flex;align-items:center;justify-content:center;}
+.form-wrap{width:100%;max-width:380px;}
+.form-title{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:700;color:var(--ink);margin-bottom:6px;}
+.form-sub{font-size:14px;color:var(--ink3);margin-bottom:32px;}
+
+.fg{margin-bottom:18px;}
+.fg label{display:block;font-size:12px;font-weight:600;color:var(--ink2);margin-bottom:6px;letter-spacing:.02em;text-transform:uppercase;}
+input{width:100%;padding:12px 14px;border:1.5px solid var(--bdr2);border-radius:var(--r-sm);font-family:'Instrument Sans',sans-serif;font-size:15px;color:var(--ink);background:var(--warm);outline:none;transition:border-color .15s;}
+input:focus{border-color:var(--terra);box-shadow:0 0 0 3px rgba(194,82,42,.08);}
+input.error{border-color:#ef4444;}
+
+.btn-login{width:100%;padding:13px;border:none;border-radius:var(--r-sm);background:var(--terra);color:#fff;font-family:'Instrument Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all .15s;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px;}
+.btn-login:hover{background:#A84224;transform:translateY(-1px);box-shadow:0 4px 14px rgba(194,82,42,.28);}
+.btn-login:disabled{background:var(--ink3);transform:none;box-shadow:none;cursor:not-allowed;}
+
+.error-box{background:#FEF2F2;border:1px solid #FECACA;border-radius:var(--r-sm);padding:12px 14px;font-size:13px;color:#991B1B;margin-bottom:16px;display:none;}
+.error-box.show{display:block;}
+
+.spin{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:rot .7s linear infinite;}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+/* MOBILE */
+@media(max-width:700px){
+  body{grid-template-columns:1fr;}
+  .left{display:none;}
+  .right{padding:40px 24px;min-height:100vh;align-items:flex-start;padding-top:80px;}
+}
+</style>
+</head>
+<body>
+
+<div class="left">
+  <div class="left-logo">Mad<em>plan</em>en</div>
+  <div class="left-main">
+    <div class="left-title">Lækker mad<br><em>inden for budgettet.</em><br>Hver uge.</div>
+    <div class="left-sub">AI-genererede madplaner baseret på aktuelle tilbud fra dine butikker.</div>
+    <div class="left-features">
+      <div class="feature"><div class="feature-dot"></div>Live tilbud fra Netto, Lidl, Rema 1000, Føtex og Bilka</div>
+      <div class="feature"><div class="feature-dot"></div>Madplan på 30 sekunder inden for dit budget</div>
+      <div class="feature"><div class="feature-dot"></div>Indkøbsliste sorteret efter butik</div>
+      <div class="feature"><div class="feature-dot"></div>Husker hvad du kan lide og ikke lide</div>
+    </div>
+  </div>
+  <div class="left-meta">© 2026 Madplanen</div>
+</div>
+
+<div class="right">
+  <div class="form-wrap">
+    <div class="form-title">Velkommen tilbage</div>
+    <div class="form-sub">Log ind for at se din madplan</div>
+
+    <div class="error-box" id="errorBox"></div>
+
+    <div class="fg">
+      <label>Email</label>
+      <input type="email" id="email" placeholder="dig@eksempel.dk" autocomplete="email" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="fg">
+      <label>Kodeord</label>
+      <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+
+    <button class="btn-login" id="loginBtn" onclick="doLogin()">
+      <span id="loginTxt">Log ind</span>
+      <div class="spin" id="loginSpin" style="display:none"></div>
+    </button>
+  </div>
+</div>
+
+<script>
+// Hvis allerede logget ind — gå direkte til forsiden
+if (localStorage.getItem('mp_token')) {
+  window.location.href = 'index.html';
+}
+
+async function doLogin() {
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const errorBox = document.getElementById('errorBox');
+  const btn = document.getElementById('loginBtn');
+  const txt = document.getElementById('loginTxt');
+  const spin = document.getElementById('loginSpin');
+
+  if (!email || !password) {
+    showError('Udfyld email og kodeord');
+    return;
+  }
+
+  btn.disabled = true;
+  txt.textContent = 'Logger ind...';
+  spin.style.display = 'block';
+  errorBox.classList.remove('show');
+
+  try {
+    const r = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await r.json();
+
+    if (!r.ok) {
+      showError(data.error || 'Forkert email eller kodeord');
+      return;
+    }
+
+    // Gem token og bruger
+    localStorage.setItem('mp_token', data.token);
+    localStorage.setItem('mp_user', JSON.stringify(data.user));
+
+    // Gå til forsiden
+    window.location.href = 'index.html';
+
+  } catch(e) {
+    showError('Kunne ikke forbinde til serveren — prøv igen');
+  } finally {
+    btn.disabled = false;
+    txt.textContent = 'Log ind';
+    spin.style.display = 'none';
+  }
+}
+
+function showError(msg) {
+  const box = document.getElementById('errorBox');
+  box.textContent = msg;
+  box.classList.add('show');
+  document.getElementById('email').classList.add('error');
+  document.getElementById('password').classList.add('error');
+}
+</script>
+</body>
+</html>

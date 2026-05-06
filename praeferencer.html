@@ -84,6 +84,13 @@ input:focus,select:focus{border-color:var(--terra);}
 </div>
 
 <script>
+
+  // ── KRÆV LOGIN ──
+  (async () => {
+    const user = await Auth.requireLogin();
+    if (!user) return; // requireLogin redirecter til login.html
+  })();
+
 let P={dislikes:[],favorites:[],allergies:'',diet:'',history:[]};
 function load(){try{const d=localStorage.getItem('mp6');if(d){const s=JSON.parse(d);P={...P,...(s.prefs||{})};}}catch(e){}render();}
 function save(){try{const d=JSON.parse(localStorage.getItem('mp6')||'{}');d.prefs=P;localStorage.setItem('mp6',JSON.stringify(d));}catch(e){}}
@@ -105,6 +112,7 @@ function render(){
 load();
 </script>
 
+<script src="auth.js"></script>
 <script src="nav.js"></script>
 <script>buildNav('praeferencer');</script>
 </body>

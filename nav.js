@@ -90,9 +90,10 @@ function buildNav(activePage) {
     </div>
     <div class="top-nav-right">
       <div class="top-nav-user">
-        <div class="top-nav-avatar">M</div>
-        <span>Mette</span>
+        <div class="top-nav-avatar" id="navAvatar">?</div>
+        <span id="navUserName">...</span>
       </div>
+      <button onclick="Auth.logout()" style="background:rgba(255,255,255,0.08);border:none;color:rgba(255,255,255,0.5);font-family:'Instrument Sans',sans-serif;font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;">Log ud</button>
       <div class="top-nav-week">Uge ${week} · ${year}</div>
     </div>
   `;
@@ -114,3 +115,16 @@ function buildNav(activePage) {
   document.body.prepend(topNav);
   document.body.appendChild(bottomNav);
 }
+
+// Opdater brugerinfo i nav når siden loader
+document.addEventListener('DOMContentLoaded', () => {
+  if (typeof Auth !== 'undefined') {
+    const user = Auth.user();
+    if (user) {
+      const avatar = document.getElementById('navAvatar');
+      const name = document.getElementById('navUserName');
+      if (avatar) avatar.textContent = user.name ? user.name[0].toUpperCase() : '?';
+      if (name) name.textContent = user.name || user.email;
+    }
+  }
+});

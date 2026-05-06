@@ -75,13 +75,20 @@ body{font-family:'Instrument Sans',sans-serif;background:var(--cream);color:var(
 <div class="offer-grid" id="offGrid"><div style="grid-column:1/-1;color:var(--ink3);font-size:14px;padding:40px;text-align:center">Klik "Hent tilbud" eller vælg en kategori ovenfor</div></div>
 
 <script>
+
+  // ── KRÆV LOGIN ──
+  (async () => {
+    const user = await Auth.requireLogin();
+    if (!user) return; // requireLogin redirecter til login.html
+  })();
+
 let S={offers:[],sf:'alle'};
 try{const d=localStorage.getItem('mp6');if(d){const p=JSON.parse(d);S.offers=p.offers||[];}}catch(e){}
 
 function save(){try{const d=JSON.parse(localStorage.getItem('mp6')||'{}');d.offers=S.offers;localStorage.setItem('mp6',JSON.stringify(d));}catch(e){}}
 
 async function claude(prompt,max=1500){
-  const r=await fetch('/api/claude',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:max,messages:[{role:'user',content:prompt}]})});
+  const r=await Auth.fetch('/api/claude',{method:'POST',headers:{'Content-Type':'application/json','x-app-key':APP_KEY},body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:max,messages:[{role:'user',content:prompt}]})});
   const d=await r.json();
   if(!r.ok){
     const msg=d?.error?.message||d?.error||JSON.stringify(d);
@@ -147,7 +154,12 @@ function renderOffers(){
 renderOffers();
 </script>
 
+<script src="auth.js"></script>
 <script src="nav.js"></script>
-<script>buildNav('tilbud');</script>
+<script>
+// ── APP KEY (skal matche APP_KEY i Railway Variables) ──
+const APP_KEY = 'INDSAET-DIN-APP-KEY-HER';
+
+buildNav('tilbud');</script>
 </body>
 </html>
