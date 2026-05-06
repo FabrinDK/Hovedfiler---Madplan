@@ -7,6 +7,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const app = express();
+app.set('trust proxy', 1); // Railway kører bag en proxy
 app.use(cors());
 app.use(express.json());
 app.use(express.static('.'));
@@ -299,19 +300,40 @@ async function fetchAndSaveOffers() {
         r_radius: 50000
       });
 
-      const r = await fetch(
-        `https://squid-api.tjek.com/v2/offers/search?${params}`,
-        { headers: { 'Accept': 'application/json', 'X-Api-Av': '0.3.0' } }
-      );
+      // Timeout efter 10 sekunder
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
 
-      console.log(`eTilbudsavis svar for "${term}": ${r.status}`);
-      if (!r.ok) {
-        const errText = await r.text();
-        console.warn(`eTilbudsavis fejlede for "${term}": ${r.status} — ${errText.substring(0,200)}`);
+      let r;
+      try {
+        r = await fetch(
+          `https://squid-api.tjek.com/v2/offers/search?${params}`,
+          {
+            headers: { 'Accept': 'application/json', 'X-Api-Av': '0.3.0' },
+            signal: controller.signal
+          }
+        );
+        clearTimeout(timeout);
+      } catch(fetchErr) {
+        clearTimeout(timeout);
+        console.warn(`Netværksfejl for "${term}": ${fetchErr.message}`);
         continue;
       }
 
-      const data = await r.json();
+      console.log(`eTilbudsavis svar for "${term}": ${r.status}`);
+      if (!r.ok) {
+        const errText = await r.text().catch(() => '');
+        console.warn(`eTilbudsavis fejlede for "${term}": ${r.status} — ${errText.substring(0,100)}`);
+        continue;
+      }
+
+      let data;
+      try {
+        data = await r.json();
+      } catch(jsonErr) {
+        console.warn(`JSON parse fejl for "${term}": ${jsonErr.message}`);
+        continue;
+      }
       const list = Array.isArray(data) ? data : (data.results || []);
       console.log(`  → ${list.length} resultater for "${term}"`);
 
