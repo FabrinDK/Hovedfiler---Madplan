@@ -14,7 +14,6 @@ app.use(express.static('.'));
 // ── DATABASE ──
 const db = new Pool({ connectionString: process.env.DATABASE_URL });
 
-// Opret tabeller ved opstart
 async function initDB() {
   await db.query(`
     CREATE TABLE IF NOT EXISTS users (
@@ -55,6 +54,25 @@ async function initDB() {
       updated_at TIMESTAMP DEFAULT NOW(),
       UNIQUE(user_id, ingredient)
     );
+    CREATE TABLE IF NOT EXISTS offers (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      price NUMERIC NOT NULL,
+      orig_price NUMERIC,
+      pct_off INTEGER,
+      store TEXT,
+      unit TEXT,
+      img_url TEXT,
+      valid_till TIMESTAMP,
+      category TEXT,
+      fetched_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS offer_fetch_log (
+      id SERIAL PRIMARY KEY,
+      fetched_at TIMESTAMP DEFAULT NOW(),
+      offer_count INTEGER,
+      status TEXT
+    );
   `);
   console.log('Database tabeller klar');
 }
@@ -62,13 +80,11 @@ initDB().catch(e => console.error('DB init fejl:', e.message));
 
 // ── RATE LIMITING ──
 const limiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 30,
+  windowMs: 60 * 1000, max: 30,
   message: { error: 'For mange kald — vent et øjeblik' }
 });
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
+  windowMs: 15 * 60 * 1000, max: 10,
   message: { error: 'For mange loginforsøg — prøv igen om 15 min' }
 });
 app.use('/api/', limiter);
@@ -81,78 +97,58 @@ function requireAuth(req, res, next) {
   }
   const token = header.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
-    req.user = decoded;
+    req.user = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
     next();
-  } catch (e) {
+  } catch(e) {
     return res.status(401).json({ error: 'Ugyldig session — log ind igen' });
   }
 }
 
-// ── AUTH ENDPOINTS ──
-
-// Login
+// ── AUTH ──
 app.post('/api/auth/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email og kodeord er påkrævet' });
-    }
+    if (!email || !password) return res.status(400).json({ error: 'Email og kodeord er påkrævet' });
     const result = await db.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase()]);
     const user = result.rows[0];
-    if (!user) {
-      return res.status(401).json({ error: 'Forkert email eller kodeord' });
-    }
+    if (!user) return res.status(401).json({ error: 'Forkert email eller kodeord' });
     const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) {
-      return res.status(401).json({ error: 'Forkert email eller kodeord' });
-    }
+    if (!valid) return res.status(401).json({ error: 'Forkert email eller kodeord' });
     const token = jwt.sign(
       { id: user.id, email: user.email, name: user.name },
       process.env.JWT_SECRET || 'fallback-secret',
       { expiresIn: '30d' }
     );
     res.json({ token, user: { id: user.id, email: user.email, name: user.name, zip: user.zip } });
-  } catch (e) {
+  } catch(e) {
     console.error('Login fejl:', e.message);
     res.status(500).json({ error: 'Serverfejl' });
   }
 });
 
-// Tjek token (bruges ved sideload)
 app.get('/api/auth/me', requireAuth, async (req, res) => {
   try {
     const result = await db.query('SELECT id, email, name, zip FROM users WHERE id = $1', [req.user.id]);
     res.json(result.rows[0]);
-  } catch (e) {
-    res.status(500).json({ error: 'Serverfejl' });
-  }
+  } catch(e) { res.status(500).json({ error: 'Serverfejl' }); }
 });
 
-// Opret bruger — KUN via Railway console (kræver admin-nøgle)
 app.post('/api/auth/create-user', async (req, res) => {
   try {
     const adminKey = req.headers['x-admin-key'];
-    if (adminKey !== process.env.ADMIN_KEY) {
-      return res.status(403).json({ error: 'Adgang nægtet' });
-    }
+    if (adminKey !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Adgang nægtet' });
     const { email, password, name, zip } = req.body;
-    if (!email || !password || !name) {
-      return res.status(400).json({ error: 'email, password og name er påkrævet' });
-    }
+    if (!email || !password || !name) return res.status(400).json({ error: 'email, password og name er påkrævet' });
     const hash = await bcrypt.hash(password, 12);
     const result = await db.query(
       'INSERT INTO users (email, password_hash, name, zip) VALUES ($1, $2, $3, $4) RETURNING id, email, name',
       [email.toLowerCase(), hash, name, zip || '2770']
     );
     const user = result.rows[0];
-    // Opret tomme præferencer
     await db.query('INSERT INTO preferences (user_id) VALUES ($1)', [user.id]);
     res.json({ success: true, user });
-  } catch (e) {
-    if (e.code === '23505') {
-      return res.status(409).json({ error: 'Email findes allerede' });
-    }
+  } catch(e) {
+    if (e.code === '23505') return res.status(409).json({ error: 'Email findes allerede' });
     console.error('Opret bruger fejl:', e.message);
     res.status(500).json({ error: 'Serverfejl' });
   }
@@ -163,64 +159,48 @@ app.get('/api/preferences', requireAuth, async (req, res) => {
   try {
     const result = await db.query('SELECT * FROM preferences WHERE user_id = $1', [req.user.id]);
     res.json(result.rows[0] || {});
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/preferences', requireAuth, async (req, res) => {
   try {
     const { dislikes, favorites, allergies, diet, history } = req.body;
     await db.query(`
-      UPDATE preferences SET
-        dislikes = $1, favorites = $2, allergies = $3,
-        diet = $4, history = $5, updated_at = NOW()
-      WHERE user_id = $6
-    `, [dislikes || [], favorites || [], allergies || '', diet || '', history || [], req.user.id]);
+      UPDATE preferences SET dislikes=$1, favorites=$2, allergies=$3, diet=$4, history=$5, updated_at=NOW()
+      WHERE user_id=$6
+    `, [dislikes||[], favorites||[], allergies||'', diet||'', history||[], req.user.id]);
     res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // ── MADPLANER ──
 app.get('/api/mealplans', requireAuth, async (req, res) => {
   try {
     const result = await db.query(
-      'SELECT * FROM meal_plans WHERE user_id = $1 ORDER BY year DESC, week DESC LIMIT 10',
+      'SELECT * FROM meal_plans WHERE user_id=$1 ORDER BY year DESC, week DESC LIMIT 10',
       [req.user.id]
     );
     res.json(result.rows);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/mealplans', requireAuth, async (req, res) => {
   try {
     const { week, year, plan, budget } = req.body;
-    await db.query(`
-      INSERT INTO meal_plans (user_id, week, year, plan, budget)
-      VALUES ($1, $2, $3, $4, $5)
-      ON CONFLICT DO NOTHING
-    `, [req.user.id, week, year, JSON.stringify(plan), budget]);
+    await db.query(
+      'INSERT INTO meal_plans (user_id, week, year, plan, budget) VALUES ($1,$2,$3,$4,$5)',
+      [req.user.id, week, year, JSON.stringify(plan), budget]
+    );
     res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // ── PRISDATABASE ──
 app.get('/api/prices', requireAuth, async (req, res) => {
   try {
-    const result = await db.query(
-      'SELECT * FROM price_db WHERE user_id = $1 ORDER BY ingredient',
-      [req.user.id]
-    );
+    const result = await db.query('SELECT * FROM price_db WHERE user_id=$1 ORDER BY ingredient', [req.user.id]);
     res.json(result.rows);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/prices', requireAuth, async (req, res) => {
@@ -228,36 +208,207 @@ app.post('/api/prices', requireAuth, async (req, res) => {
     const { ingredient, price, unit, store, is_sale } = req.body;
     await db.query(`
       INSERT INTO price_db (user_id, ingredient, price, unit, store, is_sale, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, NOW())
+      VALUES ($1,$2,$3,$4,$5,$6,NOW())
       ON CONFLICT (user_id, ingredient) DO UPDATE SET
-        price = $3, unit = $4, store = $5, is_sale = $6, updated_at = NOW()
-    `, [req.user.id, ingredient, price, unit, store, is_sale || false]);
+        price=$3, unit=$4, store=$5, is_sale=$6, updated_at=NOW()
+    `, [req.user.id, ingredient, price, unit, store, is_sale||false]);
     res.json({ success: true });
-  } catch (e) {
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── TILBUD — hent fra database (fælles for alle brugere) ──
+app.get('/api/offers', requireAuth, async (req, res) => {
+  try {
+    const { query, store } = req.query;
+    let sql = 'SELECT * FROM offers WHERE valid_till > NOW() OR valid_till IS NULL';
+    const params = [];
+    if (query) {
+      params.push('%' + query.toLowerCase() + '%');
+      sql += ` AND LOWER(name) LIKE $${params.length}`;
+    }
+    if (store) {
+      params.push(store);
+      sql += ` AND store = $${params.length}`;
+    }
+    sql += ' ORDER BY fetched_at DESC LIMIT 200';
+    const result = await db.query(sql, params);
+
+    // Hvis databasen er tom, hent friske tilbud med det samme
+    if (result.rows.length === 0) {
+      console.log('Ingen tilbud i DB — henter friske tilbud...');
+      await fetchAndSaveOffers();
+      const fresh = await db.query(sql, params);
+      return res.json(fresh.rows);
+    }
+
+    res.json(result.rows);
+  } catch(e) {
+    console.error('Tilbud DB fejl:', e.message);
     res.status(500).json({ error: e.message });
   }
 });
 
-// ── TILBUD FRA ETILBUDSAVIS ──
-app.get('/api/offers', requireAuth, async (req, res) => {
+// Manuelt trigger til at hente tilbud (admin only)
+app.post('/api/offers/refresh', async (req, res) => {
+  const adminKey = req.headers['x-admin-key'];
+  if (adminKey !== process.env.ADMIN_KEY) {
+    return res.status(403).json({ error: 'Adgang nægtet' });
+  }
   try {
-    const { query = 'kylling', zip = '2770' } = req.query;
-    const coords = zipToCoords(zip);
-    const params = new URLSearchParams({
-      r_locale: 'da_DK', offset: 0, limit: 96,
-      ...(query ? { query } : {}),
-      ...(coords ? { r_lat: coords.lat, r_lng: coords.lng, r_radius: 30000 } : {})
-    });
-    const r = await fetch(
-      `https://squid-api.tjek.com/v2/offers/search?${params}`,
-      { headers: { 'Accept': 'application/json', 'X-Api-Av': '0.3.0' } }
-    );
-    if (!r.ok) return res.status(r.status).json({ error: 'Tilbuds-API fejlede' });
-    res.json(await r.json());
-  } catch (e) {
+    const count = await fetchAndSaveOffers();
+    res.json({ success: true, count });
+  } catch(e) {
     res.status(500).json({ error: e.message });
   }
 });
+
+// Status på seneste tilbudshentning
+app.get('/api/offers/status', requireAuth, async (req, res) => {
+  try {
+    const count = await db.query('SELECT COUNT(*) FROM offers WHERE valid_till > NOW() OR valid_till IS NULL');
+    const last = await db.query('SELECT * FROM offer_fetch_log ORDER BY fetched_at DESC LIMIT 1');
+    res.json({
+      active_offers: parseInt(count.rows[0].count),
+      last_fetch: last.rows[0] || null
+    });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── TILBUD HENTNING (kernes) ──
+const SEARCH_TERMS = [
+  'kylling', 'oksekød', 'laks', 'svinekød', 'fisk',
+  'pasta', 'ris', 'brød', 'kartofler', 'grøntsager',
+  'mælk', 'ost', 'æg', 'smør', 'fløde',
+  'frugt', 'tomater', 'løg', 'gulerødder', 'salat'
+];
+
+async function fetchAndSaveOffers() {
+  console.log('Starter tilbudshentning fra eTilbudsavis...');
+  const allOffers = [];
+  const seen = new Set();
+
+  for (const term of SEARCH_TERMS) {
+    try {
+      const params = new URLSearchParams({
+        r_locale: 'da_DK',
+        query: term,
+        offset: 0,
+        limit: 48,
+        r_lat: 55.676,
+        r_lng: 12.568,
+        r_radius: 50000
+      });
+
+      const r = await fetch(
+        `https://squid-api.tjek.com/v2/offers/search?${params}`,
+        { headers: { 'Accept': 'application/json', 'X-Api-Av': '0.3.0' } }
+      );
+
+      if (!r.ok) {
+        console.warn(`eTilbudsavis fejlede for "${term}": ${r.status}`);
+        continue;
+      }
+
+      const data = await r.json();
+      const list = Array.isArray(data) ? data : (data.results || []);
+
+      list.forEach(o => {
+        const id = o.id || Math.random().toString(36).substr(2);
+        if (seen.has(id)) return;
+        seen.add(id);
+
+        const price = o.pricing?.price?.amount != null ? o.pricing.price.amount / 100 : null;
+        if (!price || !o.heading) return;
+
+        allOffers.push({
+          id,
+          name: o.heading,
+          price,
+          orig_price: o.pricing?.pre_price?.amount != null ? o.pricing.pre_price.amount / 100 : null,
+          pct_off: o.pricing?.discount != null ? Math.round(o.pricing.discount) : null,
+          store: o.branding?.name || 'Ukendt',
+          unit: o.quantity?.unit || null,
+          img_url: o.images?.view || o.images?.thumb || null,
+          valid_till: o.run_till || null,
+          category: term
+        });
+      });
+
+      // Respektér API'et — vent lidt mellem kald
+      await new Promise(r => setTimeout(r, 300));
+
+    } catch(e) {
+      console.warn(`Fejl for "${term}":`, e.message);
+    }
+  }
+
+  // Gem i database
+  if (allOffers.length > 0) {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Slet gamle tilbud der er udløbet
+      await client.query(`DELETE FROM offers WHERE valid_till < NOW() - INTERVAL '1 day'`);
+
+      // Indsæt nye tilbud
+      for (const o of allOffers) {
+        await client.query(`
+          INSERT INTO offers (id, name, price, orig_price, pct_off, store, unit, img_url, valid_till, category, fetched_at)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())
+          ON CONFLICT (id) DO UPDATE SET
+            price=$3, orig_price=$4, pct_off=$5, img_url=$8,
+            valid_till=$9, fetched_at=NOW()
+        `, [o.id, o.name, o.price, o.orig_price, o.pct_off, o.store, o.unit, o.img_url, o.valid_till, o.category]);
+      }
+
+      await client.query('COMMIT');
+    } catch(e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+
+    // Log hentningen
+    await db.query(
+      'INSERT INTO offer_fetch_log (offer_count, status) VALUES ($1, $2)',
+      [allOffers.length, 'success']
+    );
+
+    console.log(`✅ ${allOffers.length} tilbud gemt i database`);
+  }
+
+  return allOffers.length;
+}
+
+// ── CRON JOB — kør hver nat kl. 02:00 ──
+function scheduleNightlyFetch() {
+  const now = new Date();
+  const next = new Date();
+  next.setHours(2, 0, 0, 0);
+  if (next <= now) next.setDate(next.getDate() + 1);
+
+  const msUntilNext = next - now;
+  console.log(`Næste tilbudsopdatering: ${next.toLocaleString('da-DK')} (om ${Math.round(msUntilNext/3600000)} timer)`);
+
+  setTimeout(async () => {
+    try {
+      await fetchAndSaveOffers();
+    } catch(e) {
+      console.error('Nattlig tilbudshentning fejlede:', e.message);
+      await db.query('INSERT INTO offer_fetch_log (offer_count, status) VALUES (0, $1)', ['error: ' + e.message]);
+    }
+    // Planlæg næste kørsel (24 timer)
+    setInterval(async () => {
+      try {
+        await fetchAndSaveOffers();
+      } catch(e) {
+        console.error('Tilbudshentning fejlede:', e.message);
+      }
+    }, 24 * 60 * 60 * 1000);
+  }, msUntilNext);
+}
 
 // ── ANTHROPIC API PROXY ──
 app.post('/api/claude', requireAuth, async (req, res) => {
@@ -280,37 +431,32 @@ app.post('/api/claude', requireAuth, async (req, res) => {
       return res.status(response.status).json(data);
     }
     res.json(data);
-  } catch (e) {
+  } catch(e) {
     console.error('Claude proxy fejl:', e.message);
     res.status(500).json({ error: e.message });
   }
 });
 
-// ── KOORDINATER ──
-function zipToCoords(zip) {
-  const m = {
-    '2000':{lat:55.683,lng:12.528},'2100':{lat:55.706,lng:12.567},
-    '2200':{lat:55.700,lng:12.535},'2300':{lat:55.660,lng:12.583},
-    '2400':{lat:55.714,lng:12.519},'2500':{lat:55.679,lng:12.494},
-    '2600':{lat:55.648,lng:12.461},'2700':{lat:55.688,lng:12.477},
-    '2720':{lat:55.693,lng:12.461},'2730':{lat:55.696,lng:12.472},
-    '2740':{lat:55.704,lng:12.468},'2750':{lat:55.689,lng:12.452},
-    '2760':{lat:55.696,lng:12.445},'2770':{lat:55.627,lng:12.600},
-    '2800':{lat:55.764,lng:12.497},'2820':{lat:55.753,lng:12.484},
-    '2830':{lat:55.744,lng:12.468},'2850':{lat:55.736,lng:12.527},
-    '2900':{lat:55.762,lng:12.571},'3000':{lat:55.926,lng:12.519},
-    '4000':{lat:55.641,lng:12.085},'5000':{lat:55.396,lng:10.389},
-    '6000':{lat:55.496,lng:9.472},'7000':{lat:55.466,lng:9.143},
-    '8000':{lat:56.152,lng:10.203},'9000':{lat:57.048,lng:9.921}
-  };
-  const z = String(zip).trim();
-  return m[z] || m[z.substring(0,2)+'00'] || { lat:55.676, lng:12.568 };
-}
-
 // ── START ──
-app.listen(process.env.PORT || 3000, () => {
+app.listen(process.env.PORT || 3000, async () => {
   console.log('Server kører på port', process.env.PORT || 3000);
   if (!process.env.ANTHROPIC_KEY) console.warn('ADVARSEL: ANTHROPIC_KEY mangler!');
   if (!process.env.JWT_SECRET) console.warn('ADVARSEL: JWT_SECRET mangler!');
   if (!process.env.ADMIN_KEY) console.warn('ADVARSEL: ADMIN_KEY mangler!');
+
+  // Hent tilbud ved opstart hvis databasen er tom
+  try {
+    const count = await db.query('SELECT COUNT(*) FROM offers');
+    if (parseInt(count.rows[0].count) === 0) {
+      console.log('Database tom — henter tilbud ved opstart...');
+      fetchAndSaveOffers().catch(e => console.error('Opstart tilbud fejl:', e.message));
+    } else {
+      console.log(`Database har ${count.rows[0].count} tilbud`);
+    }
+  } catch(e) {
+    console.warn('Kunne ikke tjekke tilbud count:', e.message);
+  }
+
+  // Start nattlig cron
+  scheduleNightlyFetch();
 });
