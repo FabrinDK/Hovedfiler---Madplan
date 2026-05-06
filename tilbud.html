@@ -80,11 +80,6 @@ try{const d=localStorage.getItem('mp6');if(d){const p=JSON.parse(d);S.offers=p.o
 
 function save(){try{const d=JSON.parse(localStorage.getItem('mp6')||'{}');d.offers=S.offers;localStorage.setItem('mp6',JSON.stringify(d));}catch(e){}}
 
-async function claude(prompt,max=1500){
-  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:max,messages:[{role:'user',content:prompt}]})});
-  if(!r.ok)throw new Error('API fejl '+r.status);
-  const d=await r.json();return d.content.map(c=>c.text||'').join('');
-}
 
 async function doFetch(){
   const q=document.getElementById('oSearch').value.trim()||'kylling';
@@ -100,13 +95,19 @@ async function fetchAll(){
 }
 function qs(t){document.getElementById('oSearch').value=t;doFetch();}
 async function fetchViaAI(query){
-  const raw=await claude(`Generer 15-20 realistiske danske supermarkedstilbud for: "${query}". Fordel på Netto, Lidl, Rema 1000, Føtex, Bilka. Svar KUN JSON array:\n[{"name":"Kyllingebryster 1kg","price":42.95,"orig":65.00,"pct":34,"store":"Netto","unit":"1kg"}]`);
-  const list=JSON.parse(raw.replace(/```json|```/g,'').trim());
+  const prompt=`Du er en dansk tilbudsekspert. Søg efter aktuelle tilbud på: "${query}" i danske supermarkeder (Rema 1000, Netto, Lidl, Aldi, Bilka, Føtex, Meny, SuperBrugsen, Normal). Svar KUN med JSON array uden markdown:\n[{"name":"Kyllingebryster 1kg","price":42.95,"orig":65.00,"pct":34,"store":"Netto","unit":"1kg"}]`;
+  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1500,tools:[{type:'web_search_20250305',name:'web_search'}],messages:[{role:'user',content:prompt}]})});
+  if(!r.ok)throw new Error('API fejl '+r.status);
+  const d=await r.json();
+  if(d.error)throw new Error(d.error.message);
+  const txt=d.content.find(b=>b.type==='text')?.text||'';
+  const raw=txt.replace(/```json\n?|\n?```/g,'').trim();
+  const list=JSON.parse(raw);
   const norm=list.map((o,i)=>({id:'ai_'+Date.now()+'_'+i,name:o.name||'',price:parseFloat(o.price)||0,orig:o.orig?parseFloat(o.orig):null,pct:o.pct?parseInt(o.pct):null,store:o.store||'Ukendt',unit:o.unit||'',src:'ai'})).filter(o=>o.name&&o.price>0);
   const old=S.offers.filter(o=>o.src!=='ai');
   const map=new Map();[...old,...norm].forEach(o=>map.set(o.id,o));
   S.offers=[...map.values()];save();renderOffers();
-  setInfo('i-grn',`✅ ${norm.length} tilbud hentet for "${query}". Priser gemt i prisdatabase.`);
+  setInfo('i-grn',`✅ ${norm.length} tilbud fundet for "${query}" via live søgning.`);
 }
 function setInfo(cls,txt){const el=document.getElementById('apiInfo');if(el){el.className='info '+cls;el.textContent=txt;}}
 function bl(on,lbl){const b=document.getElementById('fBtn');const t=document.getElementById('fTxt');const s=document.getElementById('fSpin');b.disabled=on;t.textContent=lbl;s.style.display=on?'block':'none';}
