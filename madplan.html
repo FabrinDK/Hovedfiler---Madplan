@@ -204,8 +204,15 @@ function renderStatus(){
 
 async function claude(prompt,max=4000){
   const r=await fetch('/api/claude',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:max,messages:[{role:'user',content:prompt}]})});
-  if(!r.ok)throw new Error('API fejl '+r.status);
-  const d=await r.json();return d.content.map(c=>c.text||'').join('');
+  const d=await r.json();
+  if(!r.ok){
+    const msg=d?.error?.message||d?.error||JSON.stringify(d);
+    throw new Error('API fejl '+r.status+': '+msg);
+  }
+  if(!d.content){
+    throw new Error('Uventet svar fra server: '+JSON.stringify(d).substring(0,200));
+  }
+  return d.content.map(c=>c.text||'').join('');
 }
 
 async function genPlan(){
