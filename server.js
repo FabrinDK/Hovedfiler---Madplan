@@ -249,18 +249,129 @@ app.get('/api/offers', requireAuth, async (req, res) => {
   }
 });
 
-// Manuelt trigger til at hente tilbud (admin only)
+// SSE progress stream — sender løbende opdateringer til browseren
+app.get('/api/offers/refresh-stream', async (req, res) => {
+  const adminKey = req.query.admin_key;
+  if (adminKey !== process.env.ADMIN_KEY) {
+    return res.status(403).json({ error: 'Adgang nægtet' });
+  }
+
+  // Sæt SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  function send(data) {
+    res.write('data: ' + JSON.stringify(data) + '\n\n');
+  }
+
+  try {
+    send({ type: 'start', total: SEARCH_TERMS.length, message: 'Starter tilbudshentning...' });
+
+    let totalSaved = 0;
+    const seen = new Set();
+
+    await db.query(`DELETE FROM offers WHERE valid_till < NOW() - INTERVAL '1 day'`)
+      .catch(e => console.warn('Slet fejl:', e.message));
+
+    for (let i = 0; i < SEARCH_TERMS.length; i++) {
+      const term = SEARCH_TERMS[i];
+      send({ type: 'progress', current: i + 1, total: SEARCH_TERMS.length, term, message: `Henter "${term}"...` });
+
+      try {
+        const params = new URLSearchParams({
+          r_locale: 'da_DK', query: term,
+          offset: 0, limit: 48,
+          r_lat: 55.676, r_lng: 12.568, r_radius: 50000
+        });
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 12000);
+        let r;
+        try {
+          r = await fetch(
+            `https://squid-api.tjek.com/v2/offers/search?${params}`,
+            { headers: { 'Accept': 'application/json', 'X-Api-Av': '0.3.0' }, signal: controller.signal }
+          );
+          clearTimeout(timeout);
+        } catch(fetchErr) {
+          clearTimeout(timeout);
+          send({ type: 'warning', term, message: `Netværksfejl for "${term}" — springer over` });
+          continue;
+        }
+
+        if (!r.ok) {
+          send({ type: 'warning', term, message: `API svarede ${r.status} for "${term}"` });
+          continue;
+        }
+
+        let data;
+        try { data = await r.json(); }
+        catch(e) { send({ type: 'warning', term, message: `JSON fejl for "${term}"` }); continue; }
+
+        const list = Array.isArray(data) ? data : (data.results || []);
+        let termSaved = 0;
+
+        for (const o of list) {
+          const id = o.id;
+          if (!id || seen.has(id)) continue;
+          seen.add(id);
+          const price = o.pricing?.price?.amount != null ? o.pricing.price.amount / 100 : null;
+          if (!price || !o.heading) continue;
+          try {
+            await db.query(`
+              INSERT INTO offers (id, name, price, orig_price, pct_off, store, unit, img_url, valid_till, category, fetched_at)
+              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())
+              ON CONFLICT (id) DO UPDATE SET price=$3, orig_price=$4, pct_off=$5, img_url=$8, valid_till=$9, fetched_at=NOW()
+            `, [
+              id, o.heading, price,
+              o.pricing?.pre_price?.amount != null ? o.pricing.pre_price.amount / 100 : null,
+              o.pricing?.discount != null ? Math.round(o.pricing.discount) : null,
+              o.branding?.name || 'Ukendt',
+              o.quantity?.unit || null,
+              o.images?.view || o.images?.thumb || null,
+              o.run_till || null,
+              term
+            ]);
+            termSaved++;
+            totalSaved++;
+          } catch(dbErr) {
+            // Ignorer duplikater
+          }
+        }
+
+        send({ type: 'term_done', term, found: list.length, saved: termSaved, total_so_far: totalSaved });
+        await new Promise(r => setTimeout(r, 400));
+
+      } catch(e) {
+        send({ type: 'warning', term, message: `Fejl for "${term}": ${e.message}` });
+      }
+    }
+
+    await db.query('INSERT INTO offer_fetch_log (offer_count, status) VALUES ($1, $2)', [totalSaved, 'success'])
+      .catch(() => {});
+
+    send({ type: 'done', total_saved: totalSaved, message: `✅ Færdig! ${totalSaved} tilbud gemt i database.` });
+
+  } catch(e) {
+    send({ type: 'error', message: e.message });
+  }
+
+  res.end();
+});
+
+// Behold det gamle endpoint som fallback
 app.post('/api/offers/refresh', async (req, res) => {
   const adminKey = req.headers['x-admin-key'];
   if (adminKey !== process.env.ADMIN_KEY) {
     return res.status(403).json({ error: 'Adgang nægtet' });
   }
-  try {
-    const count = await fetchAndSaveOffers();
-    res.json({ success: true, count });
-  } catch(e) {
-    res.status(500).json({ error: e.message });
-  }
+  res.json({ success: true, message: 'Brug /api/offers/refresh-stream i stedet' });
+  fetchAndSaveOffers()
+    .then(count => console.log(`Baggrunds-refresh: ${count} tilbud`))
+    .catch(e => console.error('Baggrunds-refresh fejl:', e.message));
 });
 
 // Status på seneste tilbudshentning
@@ -367,8 +478,11 @@ async function fetchAndSaveOffers() {
     }
   }
 
+  console.log(`Hentning færdig — ${allOffers.length} tilbud klar til database`);
+
   // Gem i database
   if (allOffers.length > 0) {
+    console.log('Starter database-gem...');
     const client = await db.connect();
     try {
       await client.query('BEGIN');
@@ -402,8 +516,10 @@ async function fetchAndSaveOffers() {
     );
 
     console.log(`✅ ${allOffers.length} tilbud gemt i database`);
+    console.log('Database-gem afsluttet succesfuldt');
   }
 
+  console.log('fetchAndSaveOffers returnerer:', allOffers.length);
   return allOffers.length;
 }
 
