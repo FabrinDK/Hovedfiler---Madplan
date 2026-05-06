@@ -1,0 +1,209 @@
+/* ═══════════════════════════════════════════
+   MADPLANEN — Shared Navigation
+   Desktop: top bar | Mobile: bottom tab bar
+═══════════════════════════════════════════ */
+
+:root {
+  --nav-h-desktop: 60px;
+  --nav-h-mobile: 68px;
+  --ink: #1C1917;
+  --ink2: #57534E;
+  --ink3: #A8A29E;
+  --terra: #C2522A;
+  --cream: #F7F3EC;
+  --warm: #FDFAF5;
+  --bdr: rgba(28,25,23,0.10);
+}
+
+/* ── DESKTOP TOP NAV ─────────────────────── */
+.top-nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--nav-h-desktop);
+  background: var(--ink);
+  display: flex;
+  align-items: center;
+  padding: 0 32px;
+  gap: 8px;
+  z-index: 100;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.top-nav-logo {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #fff;
+  text-decoration: none;
+  margin-right: 20px;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+.top-nav-logo em { color: #E8916A; font-style: italic; }
+
+.top-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+}
+
+.top-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.5);
+  text-decoration: none;
+  transition: all 0.15s;
+  white-space: nowrap;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+.top-nav-link:hover {
+  background: rgba(255,255,255,0.07);
+  color: rgba(255,255,255,0.85);
+}
+.top-nav-link.active {
+  background: rgba(255,255,255,0.10);
+  color: #fff;
+}
+.top-nav-link svg {
+  width: 15px; height: 15px;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+.top-nav-link.active svg { opacity: 1; }
+
+.top-nav-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.top-nav-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255,255,255,0.5);
+  font-size: 13px;
+  font-family: 'Instrument Sans', sans-serif;
+}
+.top-nav-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: #C2522A;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.top-nav-week {
+  font-size: 12px;
+  color: rgba(255,255,255,0.25);
+  font-family: 'Instrument Sans', sans-serif;
+  padding-left: 12px;
+  border-left: 1px solid rgba(255,255,255,0.1);
+}
+
+/* ── MOBILE BOTTOM TAB BAR ───────────────── */
+.bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: var(--nav-h-mobile);
+  background: var(--ink);
+  border-top: 1px solid rgba(255,255,255,0.06);
+  z-index: 100;
+  /* Safe area for iPhone home indicator */
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.bottom-nav-inner {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+}
+
+.bottom-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  text-decoration: none;
+  color: rgba(255,255,255,0.4);
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition: all 0.15s;
+  padding: 8px 4px 4px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  position: relative;
+}
+.bottom-tab:active { opacity: 0.7; }
+
+.bottom-tab svg {
+  width: 22px; height: 22px;
+  flex-shrink: 0;
+}
+
+.bottom-tab.active {
+  color: #fff;
+}
+
+/* Active indicator dot */
+.bottom-tab.active::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 32px; height: 2px;
+  background: #E8916A;
+  border-radius: 0 0 2px 2px;
+}
+
+/* Badge for counts */
+.nav-badge {
+  position: absolute;
+  top: 6px;
+  right: calc(50% - 18px);
+  min-width: 16px; height: 16px;
+  background: #C2522A;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
+/* ── PAGE BODY OFFSET ────────────────────── */
+.nav-offset-top    { padding-top: calc(var(--nav-h-desktop) + 36px); }
+.nav-offset-bottom { padding-bottom: calc(var(--nav-h-mobile) + 24px); }
+
+/* ── RESPONSIVE SWITCH ───────────────────── */
+@media (max-width: 768px) {
+  .top-nav    { display: none; }
+  .bottom-nav { display: block; }
+  .nav-offset-top    { padding-top: 24px; }
+}
+@media (min-width: 769px) {
+  .top-nav    { display: flex; }
+  .bottom-nav { display: none; }
+}

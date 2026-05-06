@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Præferencer — Madplanen</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="nav.css">
+<style>
+:root{--cream:#F7F3EC;--warm:#FDFAF5;--ink:#1C1917;--ink2:#57534E;--ink3:#A8A29E;--terra:#C2522A;--terra-l:#FBEEE8;--forest:#2D5A3D;--forest-l:#E8F2EB;--gold:#B45309;--gold-l:#FEF3C7;--bdr:rgba(28,25,23,0.09);--bdr2:rgba(28,25,23,0.16);--r:14px;--r-sm:8px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Instrument Sans',sans-serif;background:var(--cream);color:var(--ink);font-size:15px;line-height:1.6;padding:28px 24px 80px;max-width:760px;margin:0 auto;}
+@media(min-width:769px){body{padding-top:calc(60px + 36px) !important;}}
+@media(max-width:768px){body{padding-bottom:calc(68px + env(safe-area-inset-bottom) + 20px) !important;}}
+.ph{margin-bottom:24px;}
+.ph h1{font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;letter-spacing:-.03em;}
+.ph p{font-size:14px;color:var(--ink2);margin-top:5px;}
+.card{background:var(--warm);border:1px solid var(--bdr);border-radius:var(--r);padding:22px;margin-bottom:16px;}
+.card-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);margin-bottom:14px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.fg{display:flex;flex-direction:column;gap:5px;}
+.fg label{font-size:12px;font-weight:600;color:var(--ink2);}
+input,select{width:100%;padding:9px 13px;border:1.5px solid var(--bdr2);border-radius:var(--r-sm);font-family:'Instrument Sans',sans-serif;font-size:14px;color:var(--ink);background:var(--warm);outline:none;transition:border-color .15s;-webkit-appearance:none;}
+input:focus,select:focus{border-color:var(--terra);}
+.add-row{display:flex;gap:8px;margin-bottom:8px;}
+.add-row input{flex:1;}
+.btn-sm{display:inline-flex;align-items:center;padding:8px 14px;border:none;border-radius:var(--r-sm);font-family:'Instrument Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .14s;white-space:nowrap;}
+.btn-red{background:#FEE2E2;color:#991B1B;border:1px solid #FECACA;}
+.btn-grn{background:var(--forest);color:#fff;}
+.tags-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px;}
+.tag{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;}
+.tag-red{background:#FEE2E2;color:#991B1B;}
+.tag-grn{background:var(--forest-l);color:var(--forest);}
+.tag-blu{background:#DBEAFE;color:#1E40AF;}
+.tx{cursor:pointer;opacity:.5;font-size:14px;padding-left:2px;}
+.tx:hover{opacity:1;}
+.empty-tag{font-size:13px;color:var(--ink3);}
+@media(max-width:600px){.form-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="ph">
+  <h1>Præferencer</h1>
+  <p>Systemet husker hvad I kan lide — og ikke lide — på tværs af alle madplaner</p>
+</div>
+
+<div class="card">
+  <div class="card-title">❌ Kan ikke lide — undgås altid</div>
+  <div class="add-row">
+    <input type="text" id="dlIn" placeholder="Eks: grønkål, leverpostej…" onkeydown="if(event.key==='Enter')addDL()">
+    <button class="btn-sm btn-red" onclick="addDL()">+ Tilføj</button>
+  </div>
+  <div class="tags-wrap" id="dlTags"></div>
+</div>
+
+<div class="card">
+  <div class="card-title">⭐ Favoritretter — foreslås igen når det er billigt</div>
+  <div class="add-row">
+    <input type="text" id="favIn" placeholder="Eks: pasta carbonara, thai gryde…" onkeydown="if(event.key==='Enter')addFav()">
+    <button class="btn-sm btn-grn" onclick="addFav()">+ Tilføj</button>
+  </div>
+  <div class="tags-wrap" id="favTags"></div>
+</div>
+
+<div class="card">
+  <div class="card-title">Diæt & allergier</div>
+  <div class="form-grid">
+    <div class="fg"><label>Allergier</label><input type="text" id="allIn" placeholder="Eks: nødder, gluten…" oninput="saveP()"></div>
+    <div class="fg"><label>Diætpræference</label>
+      <select id="dietIn" onchange="saveP()">
+        <option value="">Ingen</option>
+        <option value="vegetar">Vegetar</option>
+        <option value="vegansk">Vegansk</option>
+        <option value="pesketarian">Pesketarian</option>
+        <option value="low-carb">Low carb</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">Historik — seneste retter du har fået foreslået</div>
+  <div id="histTags" class="tags-wrap"></div>
+</div>
+
+<script>
+let P={dislikes:[],favorites:[],allergies:'',diet:'',history:[]};
+function load(){try{const d=localStorage.getItem('mp6');if(d){const s=JSON.parse(d);P={...P,...(s.prefs||{})};}}catch(e){}render();}
+function save(){try{const d=JSON.parse(localStorage.getItem('mp6')||'{}');d.prefs=P;localStorage.setItem('mp6',JSON.stringify(d));}catch(e){}}
+function addDL(){const v=document.getElementById('dlIn').value.trim();if(!v||P.dislikes.includes(v))return;P.dislikes.push(v);document.getElementById('dlIn').value='';save();render();}
+function remDL(v){P.dislikes=P.dislikes.filter(d=>d!==v);save();render();}
+function addFav(){const v=document.getElementById('favIn').value.trim();if(!v||P.favorites.includes(v))return;P.favorites.push(v);document.getElementById('favIn').value='';save();render();}
+function remFav(v){P.favorites=P.favorites.filter(f=>f!==v);save();render();}
+function saveP(){P.allergies=document.getElementById('allIn').value;P.diet=document.getElementById('dietIn').value;save();}
+function render(){
+  const dl=document.getElementById('dlTags');
+  const fv=document.getElementById('favTags');
+  const hi=document.getElementById('histTags');
+  dl.innerHTML=P.dislikes.map(d=>`<span class="tag tag-red">${d}<span class="tx" onclick="remDL('${d.replace(/'/g,"\\'")}')">×</span></span>`).join('')||'<span class="empty-tag">Ingen endnu</span>';
+  fv.innerHTML=P.favorites.map(f=>`<span class="tag tag-grn">${f}<span class="tx" onclick="remFav('${f.replace(/'/g,"\\'")}')">×</span></span>`).join('')||'<span class="empty-tag">Ingen endnu</span>';
+  hi.innerHTML=(P.history||[]).slice().reverse().slice(0,20).map(r=>`<span class="tag tag-blu">${r}</span>`).join('')||'<span class="empty-tag">Ingen historik endnu — generer en madplan for at komme i gang.</span>';
+  document.getElementById('allIn').value=P.allergies||'';
+  document.getElementById('dietIn').value=P.diet||'';
+}
+load();
+</script>
+
+<script src="nav.js"></script>
+<script>buildNav('praeferencer');</script>
+</body>
+</html>

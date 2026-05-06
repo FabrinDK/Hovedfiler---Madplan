@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Madplanen — Din uges mad</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="nav.css">
+<style>
+:root {
+  --cream:#F7F3EC; --warm:#FDFAF5; --ink:#1C1917; --ink2:#57534E; --ink3:#A8A29E;
+  --terra:#C2522A; --terra-l:#FBEEE8; --terra-d:#8C3317;
+  --forest:#2D5A3D; --forest-l:#E8F2EB;
+  --gold:#B45309; --gold-l:#FEF3C7;
+  --bdr:rgba(28,25,23,0.09); --bdr2:rgba(28,25,23,0.16);
+  --r:14px; --r-sm:8px; --r-lg:20px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Instrument Sans', sans-serif;
+  background: var(--cream);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+@media(min-width:769px) { body { padding-top: var(--nav-h-desktop); } }
+@media(max-width:768px) { body { padding-bottom: calc(var(--nav-h-mobile) + env(safe-area-inset-bottom)); } }
+
+/* ── HERO ── */
+.hero {
+  background: var(--ink);
+  padding: 52px 40px 48px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  align-items: center;
+  min-height: 380px;
+}
+.hero-left { max-width: 480px; }
+.hero-eyebrow {
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .1em;
+  color: #E8916A; margin-bottom: 14px;
+}
+.hero-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 3rem; font-weight: 700;
+  color: #fff; line-height: 1.08;
+  letter-spacing: -.03em; margin-bottom: 18px;
+}
+.hero-title em { color: #E8916A; font-style: italic; }
+.hero-sub {
+  font-size: 15px; color: rgba(255,255,255,.55);
+  line-height: 1.7; margin-bottom: 28px; max-width: 360px;
+}
+.hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn-hero-primary {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 13px 24px;
+  background: var(--terra); color: #fff;
+  border: none; border-radius: var(--r-sm);
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  text-decoration: none; transition: all .15s;
+}
+.btn-hero-primary:hover { background: #A84224; transform: translateY(-1px); }
+.btn-hero-ghost {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 13px 24px;
+  background: transparent; color: rgba(255,255,255,.7);
+  border: 1.5px solid rgba(255,255,255,.2);
+  border-radius: var(--r-sm);
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  text-decoration: none; transition: all .15s;
+}
+.btn-hero-ghost:hover { border-color: rgba(255,255,255,.5); color: #fff; }
+
+/* Hero week preview */
+.hero-right {}
+.hero-week-label {
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .07em;
+  color: rgba(255,255,255,.3); margin-bottom: 12px;
+}
+.hero-week-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+.hero-day {
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 10px; overflow: hidden;
+  transition: background .15s;
+}
+.hero-day:hover { background: rgba(255,255,255,.1); }
+.hero-day-hdr {
+  background: rgba(255,255,255,.08);
+  padding: 6px 8px;
+  font-size: 9px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em;
+  color: rgba(255,255,255,.4);
+}
+.hero-day-img {
+  width: 100%; aspect-ratio: 1;
+  object-fit: cover;
+  background: rgba(255,255,255,.04);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px;
+}
+.hero-day-name {
+  padding: 7px 8px;
+  font-size: 11px; font-weight: 600;
+  color: rgba(255,255,255,.75); line-height: 1.3;
+}
+.hero-day-meta {
+  padding: 0 8px 8px;
+  font-size: 10px; color: rgba(255,255,255,.3);
+  display: flex; gap: 4px; flex-wrap: wrap;
+}
+.hero-badge {
+  font-size: 9px; font-weight: 700;
+  padding: 1px 5px; border-radius: 6px;
+}
+.hb-sale { background: rgba(46,90,61,.6); color: #86efac; }
+.hb-rest { background: rgba(180,83,9,.4); color: #fcd34d; }
+
+/* ── MAIN CONTENT ── */
+.main { max-width: 1100px; margin: 0 auto; padding: 40px 32px 60px; }
+
+/* ── STATUS CARDS ── */
+.status-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 36px;
+}
+.status-card {
+  background: var(--warm);
+  border: 1px solid var(--bdr);
+  border-radius: var(--r);
+  padding: 18px 20px;
+  display: flex; align-items: center; gap: 14px;
+  text-decoration: none; color: var(--ink);
+  transition: all .15s;
+}
+.status-card:hover { border-color: var(--bdr2); box-shadow: 0 4px 14px rgba(28,25,23,.08); transform: translateY(-1px); }
+.status-icon {
+  width: 42px; height: 42px;
+  border-radius: 11px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.si-terra { background: var(--terra-l); }
+.si-forest { background: var(--forest-l); }
+.si-gold { background: var(--gold-l); }
+.si-ink { background: rgba(28,25,23,.06); }
+.status-icon svg { width: 20px; height: 20px; }
+.si-terra svg { color: var(--terra); }
+.si-forest svg { color: var(--forest); }
+.si-gold svg { color: var(--gold); }
+.si-ink svg { color: var(--ink2); }
+.status-text {}
+.status-val {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.4rem; font-weight: 700; line-height: 1;
+  color: var(--ink);
+}
+.status-lbl { font-size: 12px; color: var(--ink3); font-weight: 500; margin-top: 2px; }
+
+/* ── SECTION HEADERS ── */
+.sec-hdr {
+  display: flex; align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 18px; gap: 12px;
+}
+.sec-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.5rem; font-weight: 700;
+  letter-spacing: -.02em; color: var(--ink);
+}
+.sec-link {
+  font-size: 13px; font-weight: 600; color: var(--terra);
+  text-decoration: none; white-space: nowrap;
+}
+.sec-link:hover { text-decoration: underline; }
+
+/* ── RECIPE CARDS ── */
+.rec-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 40px;
+}
+.rec-card {
+  background: var(--warm);
+  border: 1px solid var(--bdr);
+  border-radius: var(--r);
+  overflow: hidden;
+  text-decoration: none; color: var(--ink);
+  transition: all .15s;
+  display: flex; flex-direction: column;
+}
+.rec-card:hover { border-color: var(--bdr2); box-shadow: 0 6px 20px rgba(28,25,23,.1); transform: translateY(-2px); }
+.rec-img {
+  width: 100%; aspect-ratio: 4/3;
+  background: var(--cream);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 52px;
+  position: relative; overflow: hidden;
+}
+.rec-img-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(28,25,23,.5) 0%, transparent 60%);
+}
+.rec-img-badges {
+  position: absolute; bottom: 8px; left: 8px;
+  display: flex; gap: 4px;
+}
+.rec-badge {
+  font-size: 10px; font-weight: 700;
+  padding: 2px 8px; border-radius: 20px;
+}
+.rb-day { background: rgba(28,25,23,.7); color: rgba(255,255,255,.9); backdrop-filter: blur(4px); }
+.rb-sale { background: var(--forest); color: #fff; }
+.rb-rest { background: var(--gold); color: #fff; }
+.rec-body { padding: 14px 14px 16px; flex: 1; display: flex; flex-direction: column; }
+.rec-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 1rem; font-weight: 700;
+  line-height: 1.25; margin-bottom: 5px; color: var(--ink);
+}
+.rec-meta-row {
+  display: flex; gap: 10px; align-items: center;
+  font-size: 12px; color: var(--ink3); margin-bottom: 8px; flex-wrap: wrap;
+}
+.rec-meta-row svg { width: 13px; height: 13px; flex-shrink: 0; }
+.rec-desc { font-size: 12px; color: var(--ink2); line-height: 1.5; flex: 1; }
+.rec-footer {
+  margin-top: 12px; padding-top: 10px;
+  border-top: 1px solid var(--bdr);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.rec-cost {
+  font-family: 'Playfair Display', serif;
+  font-size: 1rem; font-weight: 700; color: var(--terra);
+}
+.rec-cost-lbl { font-size: 11px; color: var(--ink3); }
+
+/* ── FEATURED CARD (big) ── */
+.rec-card.featured {
+  grid-column: span 2;
+  flex-direction: row;
+}
+.rec-card.featured .rec-img {
+  width: 260px; min-width: 260px;
+  aspect-ratio: auto; flex-shrink: 0;
+  font-size: 72px;
+}
+@media(max-width:600px) {
+  .rec-card.featured { flex-direction: column; grid-column: span 1; }
+  .rec-card.featured .rec-img { width: 100%; min-width: 0; aspect-ratio: 4/3; }
+}
+
+/* ── WEEK STRIP ── */
+.week-strip {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
+  margin-bottom: 40px;
+}
+
+/* Next week bar */
+.next-week-bar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
+  margin-bottom: 40px;
+}
+.nwday {
+  background: var(--warm);
+  border: 1.5px dashed var(--bdr2);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  text-decoration: none; color: var(--ink);
+  transition: all .15s;
+}
+.nwday.has-plan {
+  border-style: solid;
+  border-color: var(--bdr);
+}
+.nwday:hover { border-color: var(--terra); }
+.nwday-hdr {
+  background: var(--cream);
+  padding: 7px 11px; font-size: 10px; font-weight: 700;
+  letter-spacing: .07em; text-transform: uppercase;
+  color: var(--ink3);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.nwday.has-plan .nwday-hdr { background: var(--ink); color: rgba(255,255,255,.5); }
+.nwday-n { font-family: "Playfair Display", serif; font-size: .9rem; font-weight: 400; opacity: .4; }
+.nwday-empty {
+  padding: 16px 11px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; min-height: 80px;
+}
+.nwday-plus {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: 1.5px dashed var(--ink3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; color: var(--ink3);
+  transition: all .15s;
+}
+.nwday:hover .nwday-plus { border-color: var(--terra); color: var(--terra); background: var(--terra-l); }
+.nwday-empty-lbl { font-size: 10px; color: var(--ink3); font-weight: 500; }
+.nwday-emoji { padding: 10px 11px 4px; font-size: 26px; line-height: 1; }
+.nwday-name { padding: 4px 11px; font-size: 12px; font-weight: 600; color: var(--ink); line-height: 1.3; }
+.nwday-badges { padding: 5px 11px 11px; display: flex; gap: 4px; flex-wrap: wrap; }
+.nwbadge { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 20px; }
+.nwb-sale { background: var(--forest-l); color: var(--forest); }
+.nwb-rest { background: var(--gold-l); color: var(--gold); }
+
+/* Generate next week CTA */
+.next-week-cta {
+  background: var(--ink);
+  border-radius: var(--r);
+  padding: 20px 24px;
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 16px; flex-wrap: wrap;
+  cursor: pointer; transition: opacity .15s;
+  text-decoration: none;
+}
+.next-week-cta:hover { opacity: .9; }
+.nwcta-icon { font-size: 28px; flex-shrink: 0; }
+.nwcta-text { flex: 1; }
+.nwcta-title {
+  font-family: "Playfair Display", serif;
+  font-size: 1.1rem; font-weight: 700; color: #fff; margin-bottom: 2px;
+}
+.nwcta-sub { font-size: 13px; color: rgba(255,255,255,.45); }
+.nwcta-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 10px 20px;
+  background: var(--terra); color: #fff;
+  border: none; border-radius: var(--r-sm);
+  font-family: "Instrument Sans", sans-serif;
+  font-size: 13px; font-weight: 600;
+  white-space: nowrap;
+}
+.wday {
+  background: var(--warm);
+  border: 1px solid var(--bdr);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  text-decoration: none; color: var(--ink);
+  transition: all .15s;
+}
+.wday:hover { border-color: var(--bdr2); box-shadow: 0 3px 10px rgba(28,25,23,.07); }
+.wday.today { border-color: var(--terra); box-shadow: 0 0 0 2px var(--terra-l); }
+.wday-hdr {
+  background: var(--ink); color: rgba(255,255,255,.5);
+  padding: 7px 11px; font-size: 10px; font-weight: 700;
+  letter-spacing: .07em; text-transform: uppercase;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.wday.today .wday-hdr { background: var(--terra); color: rgba(255,255,255,.9); }
+.wday-n { font-family: 'Playfair Display', serif; font-size: .9rem; font-weight: 400; opacity: .4; }
+.wday.today .wday-n { opacity: .7; }
+.wday-emoji { padding: 10px 11px 4px; font-size: 26px; line-height: 1; }
+.wday-name { padding: 4px 11px; font-size: 12px; font-weight: 600; color: var(--ink); line-height: 1.3; }
+.wday-badges { padding: 5px 11px 11px; display: flex; gap: 4px; flex-wrap: wrap; }
+.wbadge { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 20px; }
+.wb-rest { background: var(--gold-l); color: var(--gold); }
+.wb-sale { background: var(--forest-l); color: var(--forest); }
+.wb-price { background: var(--cream); color: var(--ink2); }
+
+/* ── QUICK ACTION ── */
+.quick-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 40px;
+}
+.qa-card {
+  background: var(--warm);
+  border: 1px solid var(--bdr);
+  border-radius: var(--r);
+  padding: 20px;
+  text-decoration: none; color: var(--ink);
+  transition: all .15s;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.qa-card:hover { border-color: var(--bdr2); box-shadow: 0 4px 14px rgba(28,25,23,.08); transform: translateY(-1px); }
+.qa-icon {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+}
+.qa-icon svg { width: 20px; height: 20px; }
+.qa-title { font-size: 15px; font-weight: 700; color: var(--ink); }
+.qa-sub { font-size: 13px; color: var(--ink3); line-height: 1.5; }
+.qa-arrow { font-size: 16px; color: var(--ink3); margin-top: auto; }
+
+/* ── SAVINGS BANNER ── */
+.savings-banner {
+  background: var(--ink);
+  border-radius: var(--r);
+  padding: 28px 32px;
+  display: flex; align-items: center; gap: 24px;
+  margin-bottom: 40px;
+  flex-wrap: wrap;
+}
+.sb-icon { font-size: 36px; flex-shrink: 0; }
+.sb-text { flex: 1; }
+.sb-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.3rem; font-weight: 700;
+  color: #fff; margin-bottom: 4px;
+}
+.sb-sub { font-size: 13px; color: rgba(255,255,255,.5); }
+.sb-stat {
+  display: flex; flex-direction: column; align-items: flex-end;
+  flex-shrink: 0;
+}
+.sb-val {
+  font-family: 'Playfair Display', serif;
+  font-size: 2rem; font-weight: 700; color: #E8916A; line-height: 1;
+}
+.sb-val-l { font-size: 12px; color: rgba(255,255,255,.4); margin-top: 3px; }
+
+/* ── OFFER PILLS ── */
+.offer-row {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 40px;
+}
+.offer-pill {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--warm); border: 1px solid var(--bdr);
+  border-radius: 30px; padding: 8px 14px;
+  font-size: 13px; font-weight: 500; color: var(--ink2);
+  text-decoration: none; transition: all .15s;
+}
+.offer-pill:hover { border-color: var(--terra); color: var(--terra); }
+.offer-pill-store {
+  width: 20px; height: 20px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 800; flex-shrink: 0;
+}
+.offer-pill-price { font-weight: 700; color: var(--terra); }
+.offer-pill-orig { font-size: 11px; color: var(--ink3); text-decoration: line-through; }
+.offer-pill-pct {
+  font-size: 10px; font-weight: 700;
+  background: var(--forest-l); color: var(--forest);
+  padding: 1px 6px; border-radius: 10px;
+}
+
+/* RESPONSIVE */
+@media(max-width:900px) {
+  .hero { grid-template-columns: 1fr; min-height: auto; padding: 36px 24px; }
+  .hero-right { display: none; }
+  .hero-title { font-size: 2.2rem; }
+  .status-row { grid-template-columns: 1fr 1fr; }
+  .week-strip { grid-template-columns: repeat(4, 1fr); }
+  .next-week-bar { grid-template-columns: repeat(4, 1fr); }
+  .quick-grid { grid-template-columns: 1fr 1fr; }
+  .main { padding: 28px 20px 50px; }
+}
+@media(max-width:600px) {
+  .hero { padding: 28px 20px; }
+  .hero-title { font-size: 1.8rem; }
+  .status-row { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .status-card { padding: 13px 14px; gap: 10px; }
+  .rec-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .week-strip { grid-template-columns: repeat(4, 1fr); }
+  .next-week-bar { grid-template-columns: repeat(4, 1fr); }
+  .quick-grid { grid-template-columns: 1fr; }
+  .savings-banner { padding: 20px; }
+  .sb-val { font-size: 1.5rem; }
+}
+@media(max-width:400px) {
+  .rec-grid { grid-template-columns: 1fr; }
+  .week-strip { grid-template-columns: repeat(4, 1fr); }
+  .next-week-bar { grid-template-columns: repeat(4, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<!-- ── HERO ── -->
+<section class="hero">
+  <div class="hero-left">
+    <div class="hero-eyebrow">Uge 18 · 2026</div>
+    <h1 class="hero-title">
+      Ugens mad<br><em>klar på 5 min</em>
+    </h1>
+    <p class="hero-sub">
+      5 lækre retter baseret på aktuelle tilbud fra Netto, Lidl og Rema 1000. Indkøbsliste inkluderet.
+    </p>
+    <div class="hero-actions">
+      <a href="madplan.html" class="btn-hero-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        Generer madplan
+      </a>
+      <a href="indkobsliste.html" class="btn-hero-ghost">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>
+        Se indkøbsliste
+      </a>
+    </div>
+  </div>
+  <div class="hero-right">
+    <div class="hero-week-label">Denne uges madplan</div>
+    <div class="hero-week-grid" id="heroWeekGrid"></div>
+  </div>
+</section>
+
+<!-- ── MAIN ── -->
+<main class="main">
+
+  <!-- STATUS CARDS -->
+  <div class="status-row">
+    <a href="madplan.html" class="status-card">
+      <div class="status-icon si-terra">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </div>
+      <div class="status-text">
+        <div class="status-val" id="statPlan">—</div>
+        <div class="status-lbl">Ugens madplan</div>
+      </div>
+    </a>
+    <a href="tilbud.html" class="status-card">
+      <div class="status-icon si-forest">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+      </div>
+      <div class="status-text">
+        <div class="status-val" id="statOffers">0</div>
+        <div class="status-lbl">Aktive tilbud</div>
+      </div>
+    </a>
+    <a href="indkobsliste.html" class="status-card">
+      <div class="status-icon si-gold">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>
+      </div>
+      <div class="status-text">
+        <div class="status-val" id="statShop">—</div>
+        <div class="status-lbl">Indkøbsliste</div>
+      </div>
+    </a>
+    <a href="praeferencer.html" class="status-card">
+      <div class="status-icon si-ink">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+      <div class="status-text">
+        <div class="status-val" id="statPrefs">—</div>
+        <div class="status-lbl">Præferencer</div>
+      </div>
+    </a>
+  </div>
+
+  <!-- WEEK OVERVIEW -->
+  <div class="sec-hdr">
+    <h2 class="sec-title">Denne uge</h2>
+    <a href="madplan.html" class="sec-link">Se fuld madplan →</a>
+  </div>
+  <div class="week-strip" id="weekStrip"></div>
+
+  <!-- SAVINGS BANNER -->
+  <div class="savings-banner" id="savingsBanner" style="display:none">
+    <div class="sb-icon">🏷</div>
+    <div class="sb-text">
+      <div class="sb-title">Du sparer denne uge</div>
+      <div class="sb-sub">Ved at følge aktuelle tilbud fra dine butikker</div>
+    </div>
+    <div class="sb-stat">
+      <div class="sb-val" id="savingsVal">—</div>
+      <div class="sb-val-l">kr sparet ift. normalpris</div>
+    </div>
+  </div>
+
+  <!-- NEXT WEEK -->
+  <div class="sec-hdr">
+    <h2 class="sec-title">Næste uge</h2>
+    <a href="madplan.html?uge=naeste" class="sec-link" id="genNextWeekLink">Generer næste uges plan →</a>
+  </div>
+  <div class="next-week-bar" id="nextWeekBar"></div>
+
+  <!-- ACTIVE OFFERS -->
+  <div id="offerSection" style="display:none">
+    <div class="sec-hdr">
+      <h2 class="sec-title">Aktive tilbud brugt i planen</h2>
+      <a href="tilbud.html" class="sec-link">Se alle tilbud →</a>
+    </div>
+    <div class="offer-row" id="offerPills"></div>
+  </div>
+
+  <!-- THIS WEEK'S RECIPES -->
+  <div class="sec-hdr">
+    <h2 class="sec-title">Ugens opskrifter</h2>
+    <a href="opskrifter.html" class="sec-link">Se alle opskrifter →</a>
+  </div>
+  <div class="rec-grid" id="recGrid"></div>
+
+  <!-- QUICK ACTIONS -->
+  <div class="sec-hdr" style="margin-top:8px">
+    <h2 class="sec-title">Genveje</h2>
+  </div>
+  <div class="quick-grid">
+    <a href="tilbud.html" class="qa-card">
+      <div class="qa-icon" style="background:var(--forest-l)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color:var(--forest)"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+      </div>
+      <div class="qa-title">Hent ugens tilbud</div>
+      <div class="qa-sub">Se aktuelle priser fra Netto, Lidl, Rema 1000, Føtex og Bilka</div>
+      <div class="qa-arrow">→</div>
+    </a>
+    <a href="indkobsliste.html" class="qa-card">
+      <div class="qa-icon" style="background:var(--gold-l)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color:var(--gold)"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>
+      </div>
+      <div class="qa-title">Indkøbsliste</div>
+      <div class="qa-sub">Sorteret på butik — kryds af mens du handler</div>
+      <div class="qa-arrow">→</div>
+    </a>
+    <a href="praeferencer.html" class="qa-card">
+      <div class="qa-icon" style="background:var(--terra-l)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color:var(--terra)"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+      </div>
+      <div class="qa-title">Præferencer</div>
+      <div class="qa-sub">Tilpas hvad du kan lide — systemet husker det</div>
+      <div class="qa-arrow">→</div>
+    </a>
+  </div>
+
+</main>
+
+<script>
+// ── DATA FROM LOCALSTORAGE ──
+let S = { priceDB:{}, offers:[], prefs:{dislikes:[],favorites:[],history:[]}, plan:null, shopList:{} };
+try { const d = localStorage.getItem('mp6'); if(d) S = {...S, ...JSON.parse(d)}; } catch(e) {}
+
+// ── MOCK PLAN (shown when no real plan exists) ──
+const MOCK_PLAN = {
+  days: [
+    { day:'Man', dinner:'Kylling med rosmarin', detail:'Med ovnkartofler og gulerødder', isLeftovers:false, protein:'kylling', tilbud:true,  estimatedCost:95,  emoji:'🐔' },
+    { day:'Tir', dinner:'Kylling med rosmarin', detail:'Rester fra mandag',               isLeftovers:true,  protein:'kylling', tilbud:false, estimatedCost:0,   emoji:'🐔' },
+    { day:'Ons', dinner:'Pasta bolognese',      detail:'Med revet parmesan',              isLeftovers:false, protein:'oksekød', tilbud:true,  estimatedCost:88,  emoji:'🍝' },
+    { day:'Tor', dinner:'Pasta bolognese',      detail:'Rester fra onsdag',               isLeftovers:true,  protein:'oksekød', tilbud:false, estimatedCost:0,   emoji:'🍝' },
+    { day:'Fre', dinner:'Ovnbagt laks',         detail:'Med broccoli og citronsmør',      isLeftovers:false, protein:'laks',    tilbud:true,  estimatedCost:112, emoji:'🐟' },
+  ],
+  totalEstimated: 620,
+  notes: 'God uge med variation og tilbud',
+};
+
+const MOCK_RECIPES = [
+  { name:'Kylling med rosmarin og ovnkartofler', time:'45 min', cost:95,  protein:'kylling', emoji:'🐔', day:'Man & tir', sale:true,  desc:'Saftig ovnkylling med sprøde kartofler og frisk rosmarin' },
+  { name:'Pasta bolognese',                       time:'40 min', cost:88,  protein:'oksekød', emoji:'🍝', day:'Ons & tor', sale:true,  desc:'Klassisk italiensk bolognese med langsomt tilberedt kød' },
+  { name:'Ovnbagt laks med citronsmør',           time:'30 min', cost:112, protein:'laks',    emoji:'🐟', day:'Fredag',   sale:true,  desc:'Saftig norsk laks med broccoli og frisk dild' },
+  { name:'Mørbrad med champignonsauce',           time:'35 min', cost:98,  protein:'svin',    emoji:'🐷', day:'Alternativ', sale:false, desc:'Mørt svinemørbrad i flødesauce med timian' },
+  { name:'Bøf med bearnaisesauce',                time:'40 min', cost:185, protein:'oksekød', emoji:'🥩', day:'Weekend',  sale:true,  desc:'Perfekt stegt bøf med hjemmelavet bearnaise' },
+];
+
+const plan = S.plan || MOCK_PLAN;
+const hasPlan = !!S.plan;
+const offerCount = (S.offers||[]).filter(o=>o.src==='ai').length;
+const shopCount = Object.values(S.shopList||{}).flat().filter(i=>!i.checked).length;
+const prefCount = (S.prefs?.dislikes?.length||0) + (S.prefs?.favorites?.length||0);
+
+// ── STATUS CARDS ──
+document.getElementById('statPlan').textContent  = hasPlan ? (plan.totalEstimated + ' kr') : 'Ingen endnu';
+document.getElementById('statOffers').textContent = offerCount || '0';
+document.getElementById('statShop').textContent   = shopCount ? shopCount + ' varer' : 'Tom';
+document.getElementById('statPrefs').textContent  = prefCount ? prefCount + ' valg' : 'Opsæt nu';
+
+// ── HERO WEEK GRID ──
+const heroGrid = document.getElementById('heroWeekGrid');
+heroGrid.innerHTML = plan.days.map(d => `
+  <div class="hero-day">
+    <div class="hero-day-hdr">${d.day}</div>
+    <div class="hero-day-img" style="height:60px">${d.emoji||'🍽'}</div>
+    <div class="hero-day-name">${d.dinner}</div>
+    <div class="hero-day-meta">
+      ${d.isLeftovers ? '<span class="hero-badge hb-rest">Rester</span>' : ''}
+      ${d.tilbud ? '<span class="hero-badge hb-sale">Tilbud</span>' : ''}
+    </div>
+  </div>`).join('');
+
+// ── WEEK STRIP (7 days: mon-sun) ──
+const today = new Date().getDay(); // 0=sun,1=mon...
+const ALL_DAYS = ['Man','Tir','Ons','Tor','Fre','Lør','Søn'];
+const strip = document.getElementById('weekStrip');
+
+strip.innerHTML = ALL_DAYS.map((dayLabel, i) => {
+  const dayData = plan.days[i]; // only 0-4 have data (mon-fri)
+  const isToday = (today === (i === 6 ? 0 : i+1));
+  const isWeekend = i >= 5;
+
+  if (dayData) {
+    // Has meal plan data
+    return `
+    <a href="opskrifter.html?ret=${encodeURIComponent(dayData.dinner)}" class="wday${isToday?' today':''}">
+      <div class="wday-hdr">
+        <span>${dayLabel}</span>
+        <span class="wday-n">${i+1}</span>
+      </div>
+      <div class="wday-emoji">${dayData.emoji||'🍽'}</div>
+      <div class="wday-name">${dayData.dinner}</div>
+      <div class="wday-badges">
+        ${dayData.isLeftovers ? '<span class="wbadge wb-rest">← Rester</span>' : ''}
+        ${dayData.tilbud ? '<span class="wbadge wb-sale">Tilbud</span>' : ''}
+        ${dayData.estimatedCost ? `<span class="wbadge wb-price">~${dayData.estimatedCost} kr</span>` : ''}
+      </div>
+    </a>`;
+  } else {
+    // Weekend — empty with + button
+    return `
+    <a href="madplan.html" class="wday" title="Tilføj ${dayLabel}smad" style="border-style:dashed;border-color:var(--bdr2);">
+      <div class="wday-hdr" style="background:var(--cream);color:var(--ink3)">
+        <span>${dayLabel}</span>
+        <span class="wday-n" style="opacity:.3">${i+1}</span>
+      </div>
+      <div style="padding:14px 11px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:80px;">
+        <div style="width:28px;height:28px;border-radius:50%;border:1.5px dashed var(--ink3);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--ink3);transition:all .15s">+</div>
+        <div style="font-size:10px;color:var(--ink3);font-weight:500">Inspiration</div>
+      </div>
+    </a>`;
+  }
+}).join('');
+
+// ── NEXT WEEK BAR ──
+const nextWeekPlan = S.nextWeekPlan || null;
+const nextBar = document.getElementById('nextWeekBar');
+
+// Compute next week's date labels
+const now = new Date();
+const dayOfWeek = now.getDay() || 7; // mon=1...sun=7
+const nextMon = new Date(now);
+nextMon.setDate(now.getDate() + (8 - dayOfWeek));
+
+const nextWeekDates = ALL_DAYS.map((_, i) => {
+  const d = new Date(nextMon);
+  d.setDate(nextMon.getDate() + i);
+  return d.getDate() + '/' + (d.getMonth()+1);
+});
+
+if (!nextWeekPlan) {
+  // No plan yet — show CTA + empty grid
+  nextBar.innerHTML = `
+    <div style="grid-column:1/-1;margin-bottom:12px">
+      <a href="tilbud.html" class="next-week-cta">
+        <div class="nwcta-icon">📅</div>
+        <div class="nwcta-text">
+          <div class="nwcta-title">Næste uges tilbud er klar</div>
+          <div class="nwcta-sub">Hent tilbud for uge ${getWeekNum(nextMon)} og generer din madplan allerede nu</div>
+        </div>
+        <div class="nwcta-btn">Hent tilbud →</div>
+      </a>
+    </div>` +
+    ALL_DAYS.map((label, i) => {
+      const isWeekend = i >= 5;
+      return `
+      <div class="nwday" style="opacity:${isWeekend?'.6':'1'}">
+        <div class="nwday-hdr">
+          <span>${label}</span>
+          <span class="nwday-n" style="font-family:'Playfair Display',serif;font-size:.85rem;font-weight:400;opacity:.4">${nextWeekDates[i]}</span>
+        </div>
+        <div class="nwday-empty">
+          <div class="nwday-plus">${isWeekend ? '—' : '+'}</div>
+          <div class="nwday-empty-lbl">${isWeekend ? 'Weekend' : 'Ingen plan'}</div>
+        </div>
+      </div>`;
+    }).join('');
+} else {
+  // Has next week plan
+  nextBar.innerHTML = ALL_DAYS.map((label, i) => {
+    const d = nextWeekPlan.days[i];
+    if (d) {
+      return `
+      <a href="madplan.html?uge=naeste" class="nwday has-plan">
+        <div class="nwday-hdr">
+          <span>${label}</span>
+          <span class="nwday-n">${nextWeekDates[i]}</span>
+        </div>
+        <div class="nwday-emoji">${d.emoji||'🍽'}</div>
+        <div class="nwday-name">${d.dinner}</div>
+        <div class="nwday-badges">
+          ${d.isLeftovers ? '<span class="nwbadge nwb-rest">← Rester</span>' : ''}
+          ${d.tilbud ? '<span class="nwbadge nwb-sale">Tilbud</span>' : ''}
+        </div>
+      </a>`;
+    } else {
+      const isWeekend = i >= 5;
+      return `
+      <a href="madplan.html?uge=naeste" class="nwday">
+        <div class="nwday-hdr" style="background:var(--cream);color:var(--ink3)">
+          <span>${label}</span>
+          <span class="nwday-n">${nextWeekDates[i]}</span>
+        </div>
+        <div class="nwday-empty">
+          <div class="nwday-plus">${isWeekend ? '—' : '+'}</div>
+          <div class="nwday-empty-lbl">${isWeekend ? 'Weekend' : 'Tilføj'}</div>
+        </div>
+      </a>`;
+    }
+  }).join('');
+}
+
+function getWeekNum(d) {
+  const tmp = new Date(d); tmp.setHours(0,0,0,0);
+  tmp.setDate(tmp.getDate() + 4 - (tmp.getDay()||7));
+  const y = new Date(tmp.getFullYear(),0,1);
+  return Math.ceil(((tmp-y)/86400000+1)/7);
+}
+
+// ── SAVINGS BANNER ──
+const saleOffers = (S.offers||[]).filter(o=>o.src==='ai'&&o.orig);
+const totalSaved = saleOffers.reduce((s,o)=>s+(o.orig-o.price),0);
+if (totalSaved > 0) {
+  document.getElementById('savingsBanner').style.display = 'flex';
+  document.getElementById('savingsVal').textContent = totalSaved.toFixed(2).replace('.',',') + ' kr';
+}
+
+// ── OFFER PILLS ──
+const saleItems = (S.offers||[]).filter(o=>o.src==='ai'&&o.orig).slice(0,8);
+if (saleItems.length) {
+  document.getElementById('offerSection').style.display = 'block';
+  const STORE_COLORS = {'Netto':'#FFDD00','Rema 1000':'#E31E26','Lidl':'#003399','Føtex':'#0063A3','Bilka':'#E3000F'};
+  const STORE_FG = {'Netto':'#1C1917'};
+  document.getElementById('offerPills').innerHTML = saleItems.map(o => `
+    <a href="tilbud.html" class="offer-pill">
+      <div class="offer-pill-store" style="background:${STORE_COLORS[o.store]||'#888'};color:${STORE_FG[o.store]||'#fff'}">${o.store[0]}</div>
+      <span>${o.name}</span>
+      <span class="offer-pill-price">${o.price.toFixed(2).replace('.',',')} kr</span>
+      <span class="offer-pill-orig">${o.orig.toFixed(2).replace('.',',')} kr</span>
+      <span class="offer-pill-pct">-${Math.round((1-o.price/o.orig)*100)}%</span>
+    </a>`).join('');
+}
+
+// ── RECIPE CARDS ──
+const recGrid = document.getElementById('recGrid');
+recGrid.innerHTML = MOCK_RECIPES.map((r, i) => `
+  <a href="opskrifter.html?ret=${encodeURIComponent(r.name)}" class="rec-card${i===0?' featured':''}">
+    <div class="rec-img">
+      ${r.emoji}
+      <div class="rec-img-overlay"></div>
+      <div class="rec-img-badges">
+        <span class="rec-badge rb-day">${r.day}</span>
+        ${r.sale ? '<span class="rec-badge rb-sale">Tilbud</span>' : ''}
+      </div>
+    </div>
+    <div class="rec-body">
+      <div class="rec-name">${r.name}</div>
+      <div class="rec-meta-row">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        ${r.time}
+        <span>·</span>
+        ${r.protein}
+      </div>
+      <div class="rec-desc">${r.desc}</div>
+      <div class="rec-footer">
+        <span class="rec-cost">~${r.cost} kr</span>
+        <span class="rec-cost-lbl">for 4 pers.</span>
+      </div>
+    </div>
+  </a>`).join('');
+</script>
+
+<script src="nav.js"></script>
+<script>buildNav('index');</script>
+</body>
+</html>

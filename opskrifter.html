@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Opskrifter — Madplanen</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --cream:#F7F3EC;--warm:#FDFAF5;--ink:#1C1917;--ink2:#57534E;--ink3:#A8A29E;
+  --terra:#C2522A;--terra-l:#FBEEE8;--forest:#2D5A3D;--forest-l:#E8F2EB;
+  --gold:#B45309;--gold-l:#FEF3C7;
+  --bdr:rgba(28,25,23,0.09);--bdr2:rgba(28,25,23,0.16);--r:14px;--r-sm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Instrument Sans',sans-serif;background:var(--cream);color:var(--ink);font-size:15px;line-height:1.6;padding:36px 24px 80px;max-width:900px;margin:0 auto;}
+
+/* HEADER */
+.ph{margin-bottom:32px;}
+.ph h1{font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;letter-spacing:-.03em;line-height:1.1;}
+.ph p{font-size:14px;color:var(--ink2);margin-top:5px;}
+
+/* FILTER BAR */
+.filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:28px;align-items:center;}
+.filter-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-right:4px;}
+.fpill{padding:7px 16px;border-radius:30px;border:1.5px solid var(--bdr2);background:var(--warm);font-size:13px;font-weight:600;cursor:pointer;transition:all .14s;color:var(--ink2);font-family:'Instrument Sans',sans-serif;}
+.fpill:hover{border-color:var(--ink2);color:var(--ink);}
+.fpill.on{background:var(--ink);color:#fff;border-color:var(--ink);}
+
+/* RECIPE GRID */
+.rec-grid{display:flex;flex-direction:column;gap:14px;}
+
+/* RECIPE CARD */
+.rec-card{background:var(--warm);border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden;transition:box-shadow .15s;}
+.rec-card:hover{box-shadow:0 4px 20px rgba(28,25,23,.09);}
+
+.rec-header{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:16px;
+  padding:20px 22px 18px;
+  cursor:pointer;
+  background:var(--cream);
+  align-items:start;
+}
+.rec-header:hover{background:#F0EBE2;}
+.rec-title{font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:700;color:var(--ink);margin-bottom:5px;}
+.rec-meta{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px;}
+.rec-meta-item{font-size:13px;color:var(--ink3);display:flex;align-items:center;gap:5px;}
+.rec-desc{font-size:13px;color:var(--ink2);line-height:1.55;}
+.rec-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
+.tag{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;}
+.tag-gold{background:var(--gold-l);color:var(--gold);}
+.tag-forest{background:var(--forest-l);color:var(--forest);}
+.tag-terra{background:var(--terra-l);color:var(--terra);}
+
+.rec-right{display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0;}
+.rec-cost{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;color:var(--terra);}
+.rec-cost-label{font-size:11px;color:var(--ink3);text-align:right;margin-top:-4px;}
+.rec-toggle{font-size:13px;color:var(--ink3);font-weight:500;display:flex;align-items:center;gap:5px;}
+
+/* RECIPE BODY */
+.rec-body{display:none;padding:22px;border-top:1px solid var(--bdr);}
+.rec-body.open{display:grid;grid-template-columns:1fr 1fr;gap:28px;}
+.sec-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:12px;}
+
+/* INGREDIENTS */
+.ing-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--bdr);}
+.ing-row:last-child{border-bottom:none;}
+.ing-name{font-size:13px;font-weight:600;color:var(--ink);flex:1;}
+.ing-qty{font-size:12px;color:var(--ink3);}
+.ing-store{font-size:11px;color:var(--ink3);background:var(--cream);padding:2px 8px;border-radius:10px;}
+.ing-price{font-family:'Playfair Display',serif;font-size:.9rem;font-weight:700;flex-shrink:0;}
+.ing-price.sale{color:var(--terra);}
+.ing-price.norm{color:var(--ink3);}
+.ing-total{margin-top:12px;padding-top:12px;border-top:2px solid var(--bdr2);display:flex;justify-content:space-between;align-items:center;}
+.ing-total-label{font-size:13px;font-weight:600;color:var(--ink2);}
+.ing-total-val{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--terra);}
+
+/* STEPS */
+.step-row{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--bdr);}
+.step-row:last-child{border-bottom:none;}
+.step-num{width:26px;height:26px;border-radius:50%;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;margin-top:1px;}
+.step-text{font-size:14px;color:var(--ink2);line-height:1.55;}
+
+/* TIPS BOX */
+.tip-box{background:var(--gold-l);border:1px solid #FDE68A;border-radius:var(--r-sm);padding:12px 16px;margin-top:16px;font-size:13px;color:var(--gold);grid-column:1/-1;}
+
+/* SUMMARY STRIP */
+.summary-strip{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px;}
+.strip-stat{background:var(--warm);border:1px solid var(--bdr);border-radius:var(--r-sm);padding:12px 18px;flex:1;min-width:120px;}
+.strip-val{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--ink);}
+.strip-label{font-size:11px;color:var(--ink3);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-top:2px;}
+
+@media(max-width:650px){
+  .rec-body.open{grid-template-columns:1fr;}
+  .rec-header{grid-template-columns:1fr;}
+  .rec-right{flex-direction:row;align-items:center;}
+}
+
+@media (min-width: 769px) {
+  body { padding-top: calc(60px + 36px) !important; }
+}
+@media (max-width: 768px) {
+  body { padding-bottom: calc(68px + env(safe-area-inset-bottom) + 20px) !important; }
+}
+</style>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="nav.css">
+</head>
+<body>
+
+<div class="ph">
+  <h1>Ugens opskrifter</h1>
+  <p>Uge 18 · 5 retter · tilpasset dit budget og aktuelle tilbud</p>
+</div>
+
+<div class="summary-strip" id="summaryStrip"></div>
+
+<div class="filter-bar">
+  <span class="filter-label">Protein</span>
+  <div id="filterRow"></div>
+</div>
+
+<div class="rec-grid" id="recGrid"></div>
+
+<script>
+const RECIPES = [
+  {
+    name: 'Kylling med rosmarin og ovnkartofler',
+    time: '45 min', servings: 4, protein: 'kylling', day: 'Mandag & tirsdag',
+    tags: ['Nem', 'Hverdagsmad', '2 dage'],
+    desc: 'Saftig ovnkylling med sprøde kartofler, frisk rosmarin og hvidløg. Laves i én omgang til to dages aftensmad.',
+    tip: 'Gem saften fra fadet — den er perfekt som sovs eller base til en suppe dagen efter.',
+    estCost: 95,
+    ingredients: [
+      { name:'Kyllingebryster',    qty:'1 kg',     store:'Netto',     price:42.95, sale:true  },
+      { name:'Kartofler',          qty:'1,5 kg',   store:'Rema 1000', price:14.95, sale:false },
+      { name:'Rosmarin frisk',     qty:'1 bundt',  store:'Lidl',      price:8.95,  sale:false },
+      { name:'Hvidløg',            qty:'4 fed',    store:'Netto',     price:3.95,  sale:false },
+      { name:'Gulerødder',         qty:'500 g',    store:'Netto',     price:9.95,  sale:false },
+      { name:'Olivenolie',         qty:'3 spsk',   store:null,        price:null,  sale:false },
+      { name:'Røget paprika',      qty:'1 tsk',    store:null,        price:null,  sale:false },
+      { name:'Salt & peber',       qty:'efter smag',store:null,       price:null,  sale:false },
+    ],
+    steps: [
+      'Varm ovnen op til 200°C varmluft.',
+      'Skær kartoflerne i kvarte og vend dem i olivenolie, salt, peber og røget paprika. Fordel i et ildfast fad.',
+      'Krydr kyllingebrysterne generøst med salt, peber og paprika. Læg dem oven på kartoflerne.',
+      'Fordel hvidløgsfed og rosmarinkviste rundt om kyllingen og dryp med lidt ekstra olie.',
+      'Bag i ovnen i 35-40 min til kyllingen er gennemstegt (75°C i kernen) og kartoflerne er sprøde.',
+      'Lad hvile 5 min inden servering. Gem halvdelen til næste dag — opvarm ved 160°C i 15 min.',
+    ]
+  },
+  {
+    name: 'Pasta bolognese',
+    time: '40 min', servings: 4, protein: 'oksekød', day: 'Onsdag & torsdag',
+    tags: ['Klassiker', 'Børnevenlig', '2 dage'],
+    desc: 'Rigtig italiensk bolognese med langsomt tilberedt kød, soffritto og friske krydderurter. Smager endnu bedre næste dag.',
+    tip: 'Har du tid, lad saucen simre 45-60 min. Det gør en kæmpe forskel på smagen.',
+    estCost: 88,
+    ingredients: [
+      { name:'Hakket oksekød 8-10%', qty:'500 g',    store:'Netto',  price:29.95, sale:true  },
+      { name:'Spaghetti no. 5',      qty:'500 g',    store:'Netto',  price:12.95, sale:false },
+      { name:'Hakkede tomater',      qty:'2 × 400 g',store:'Netto',  price:18.50, sale:false },
+      { name:'Løg',                  qty:'2 stk',    store:'Netto',  price:7.95,  sale:false },
+      { name:'Hvidløg',              qty:'3 fed',    store:'Netto',  price:null,  sale:false },
+      { name:'Bladselleri',          qty:'2 stængler',store:'Netto', price:8.95,  sale:false },
+      { name:'Gulerødder',           qty:'2 stk',    store:'Netto',  price:null,  sale:false },
+      { name:'Revet parmesan',       qty:'50 g',     store:'Netto',  price:24.95, sale:false },
+      { name:'Olivenolie',           qty:'2 spsk',   store:null,     price:null,  sale:false },
+    ],
+    steps: [
+      'Hak løg, selleri og gulerod fint (soffritto). Svits i olivenolie ved middel varme i 8-10 min til bløde og gyldne.',
+      'Tilsæt hakket oksekød og brun grundigt ved høj varme. Krydr med salt og peber.',
+      'Tilsæt hakkede tomater og lad saucen simre ved lav varme i min. 20 min (helst 45 min).',
+      'Kog spaghetti al dente efter pakken. Gem en kop pastavand inden du hælder vandet fra.',
+      'Tilsæt lidt pastavand til saucen for at binde den — det er hemmeligheden.',
+      'Anret med revet parmesan og evt. frisk basilikum.',
+    ]
+  },
+  {
+    name: 'Ovnbagt laks med citronsmør og broccoli',
+    time: '30 min', servings: 4, protein: 'laks', day: 'Fredag',
+    tags: ['Sundt', 'Hurtigt', 'Nem'],
+    desc: 'Saftig norsk laks ovnbagt med smeltet citronsmør, dampet broccoli og kogte kartofler. Klar på 30 minutter.',
+    tip: 'Laksen er perfekt når den stadig er let rosarød i midten — den fortsætter med at tilberede sig efter den kommer ud af ovnen.',
+    estCost: 112,
+    ingredients: [
+      { name:'Laks filet',       qty:'400 g',   store:'Rema 1000', price:49.95, sale:true  },
+      { name:'Broccoli',         qty:'1 stk',   store:'Rema 1000', price:12.95, sale:false },
+      { name:'Kartofler',        qty:'1 kg',    store:'Rema 1000', price:14.95, sale:false },
+      { name:'Smør',             qty:'50 g',    store:'Rema 1000', price:22.95, sale:false },
+      { name:'Citron',           qty:'1 stk',   store:'Rema 1000', price:5.95,  sale:false },
+      { name:'Creme fraiche 18%',qty:'100 ml',  store:'Rema 1000', price:null,  sale:false },
+      { name:'Dild frisk',       qty:'1 bundt', store:null,        price:null,  sale:false },
+      { name:'Salt & peber',     qty:'efter smag',store:null,      price:null,  sale:false },
+    ],
+    steps: [
+      'Varm ovnen til 180°C. Kog kartoflerne i godt saltet vand ca. 20 min.',
+      'Læg laksefileterne i et smurt ildfast fad. Krydr med salt, peber og fintrevet citronskal.',
+      'Smelt smørret og pres halvdelen af citronen i. Hæld smørret over laksen.',
+      'Bag laksen i ovnen 15-18 min til den netop er gennemstegt men stadig saftig.',
+      'Damp broccolien i 4-5 min i let saltet vand — den skal bevare sin sprødhed og farve.',
+      'Server laks, broccoli og kartofler med en klat creme fraiche og frisk dild.',
+    ]
+  },
+  {
+    name: 'Mørbrad med champignonsauce',
+    time: '35 min', servings: 4, protein: 'svin', day: 'Mandag & tirsdag (alternativ)',
+    tags: ['Festmad', 'Klassiker', '2 dage'],
+    desc: 'Mørt svinemørbrad med en rig champignonsauce på fløde og timian. Nem festmad der klarer to aftensmåltider.',
+    tip: 'Brun medaljoner ved høj varme for at få en ordentlig stegeskorpe — det er det der giver smagen.',
+    estCost: 98,
+    ingredients: [
+      { name:'Svinemørbrad',    qty:'500 g',   store:'Lidl',      price:34.95, sale:false },
+      { name:'Champignon',      qty:'500 g',   store:'Lidl',      price:12.95, sale:false },
+      { name:'Piskefløde 38%',  qty:'250 ml',  store:'Lidl',      price:15.95, sale:false },
+      { name:'Jasminris',       qty:'300 g',   store:'Rema 1000', price:16.95, sale:false },
+      { name:'Løg',             qty:'1 stk',   store:'Netto',     price:null,  sale:false },
+      { name:'Smør',            qty:'2 spsk',  store:'Rema 1000', price:null,  sale:false },
+      { name:'Timian frisk',    qty:'4 kviste',store:'Lidl',      price:8.95,  sale:false },
+      { name:'Salt & peber',    qty:'efter smag',store:null,      price:null,  sale:false },
+    ],
+    steps: [
+      'Skær mørbraden i 2 cm tykke medaljoner og bank dem let flade med hånden.',
+      'Varm en pande til høj varme. Brun medaljoner i smør 2 min per side til gylden skorpe. Tag dem op.',
+      'Svits finthakket løg i samme pande 3 min. Tilsæt skivede champignon og steg til de er gyldne.',
+      'Hæld fløde i og tilsæt timian. Lad saucen koge ind 5-8 min til cremet konsistens.',
+      'Kog risene efter pakken (ca. 12 min i letsaltet vand).',
+      'Læg medaljonerne tilbage i saucen og varm igennem 2 min. Smag til med salt og peber.',
+    ]
+  },
+  {
+    name: 'Bøf med bearnaisesauce og asparges',
+    time: '40 min', servings: 4, protein: 'oksekød', day: 'Weekend',
+    tags: ['Festmad', 'Weekend', 'Special'],
+    desc: 'Perfekt stegt bøf med hjemmelavet bearnaisesauce, grønne asparges og kogte kartofler. Ugens kronjuvel.',
+    tip: 'Rør aldrig bearnaisen med en ske — brug et piskeris hele vejen og tag panden af varmen hvis saucen begynder at blive for varm.',
+    estCost: 185,
+    ingredients: [
+      { name:'Oksesteak inderlår',           qty:'2 stk ±300 g', store:'Føtex', price:79.95, sale:true  },
+      { name:'Asparges grønne',              qty:'250 g',        store:'Føtex', price:24.95, sale:false },
+      { name:'Smør usaltet',                 qty:'200 g',        store:'Føtex', price:24.95, sale:false },
+      { name:'Æggeblommer pasteuriserede',   qty:'3 stk',        store:'Føtex', price:24.95, sale:false },
+      { name:'Hvidvinseddike kvalitet',      qty:'3 spsk',       store:'Føtex', price:24.95, sale:false },
+      { name:'Estragon tørret',              qty:'1 tsk',        store:'Føtex', price:14.95, sale:false },
+      { name:'Kartofler',                    qty:'800 g',        store:'Rema 1000', price:null, sale:false },
+      { name:'Salt & peber',                 qty:'efter smag',   store:null,    price:null,  sale:false },
+    ],
+    steps: [
+      'Tag bøfferne ud af køleskabet 30 min inden — de skal have stuetemperatur.',
+      'Smelt smørret langsomt og skum af. Pisk æggeblommer og eddike i en skål over vandbad til de er cremede og lyse.',
+      'Tilsæt det smeltede smør i en tynd stråle mens du pisker konstant. Saucen tykner som mayonnaise. Krydr med estragon og salt.',
+      'Varm en støbejernspande til meget høj varme. Krydr bøfferne generøst med groft salt og peber.',
+      'Steg bøfferne 2-3 min per side for medium rare. Lad hvile 5 min tildækket med folie.',
+      'Blancher asparges 2-3 min i kogende saltet vand til mørnegrønne med bid. Server straks.',
+    ]
+  },
+];
+
+let openCards = new Set([0]);
+let activeProteins = new Set(RECIPES.map(r => r.protein));
+
+function toggleCard(idx) {
+  if (openCards.has(idx)) openCards.delete(idx);
+  else openCards.add(idx);
+  renderRecipes();
+}
+
+function toggleProtein(p) {
+  if (activeProteins.has(p)) activeProteins.delete(p);
+  else activeProteins.add(p);
+  renderFilters(); renderRecipes();
+}
+
+function toggleAllProteins() {
+  const all = [...new Set(RECIPES.map(r => r.protein))];
+  if (activeProteins.size === all.length) activeProteins.clear();
+  else all.forEach(p => activeProteins.add(p));
+  renderFilters(); renderRecipes();
+}
+
+function renderFilters() {
+  const proteins = [...new Set(RECIPES.map(r => r.protein))];
+  const allOn = activeProteins.size === proteins.length;
+  const labels = {kylling:'🐔 Kylling', oksekød:'🥩 Oksekød', laks:'🐟 Laks', svin:'🐷 Svin'};
+  document.getElementById('filterRow').innerHTML =
+    `<button class="fpill${allOn?' on':''}" onclick="toggleAllProteins()" style="margin-right:6px">Alle</button>` +
+    proteins.map(p =>
+      `<button class="fpill${activeProteins.has(p)?' on':''}" onclick="toggleProtein('${p}')" style="margin-right:6px">${labels[p]||p}</button>`
+    ).join('');
+}
+
+function renderSummary() {
+  const visible = RECIPES.filter(r => activeProteins.has(r.protein));
+  const totalCost = visible.reduce((s,r) => s + r.estCost, 0);
+  const saleItems = visible.flatMap(r => r.ingredients).filter(i => i.sale).length;
+  const totalMins = visible.reduce((s,r) => s + parseInt(r.time), 0);
+  document.getElementById('summaryStrip').innerHTML = `
+    <div class="strip-stat"><div class="strip-val">${visible.length}</div><div class="strip-label">Retter denne uge</div></div>
+    <div class="strip-stat"><div class="strip-val" style="color:var(--terra)">~${totalCost} kr</div><div class="strip-label">Estimeret maddel</div></div>
+    <div class="strip-stat"><div class="strip-val" style="color:var(--forest)">${saleItems}</div><div class="strip-label">Ingredienser på tilbud</div></div>
+    <div class="strip-stat"><div class="strip-val">${totalMins} min</div><div class="strip-label">Samlet tilberedningstid</div></div>
+  `;
+}
+
+function renderRecipes() {
+  const visible = RECIPES.filter(r => activeProteins.has(r.protein));
+  renderSummary();
+  if (!visible.length) {
+    document.getElementById('recGrid').innerHTML = '<div style="text-align:center;padding:40px;color:var(--ink3);font-size:14px">Ingen opskrifter matcher filteret</div>';
+    return;
+  }
+
+  document.getElementById('recGrid').innerHTML = visible.map((r, vi) => {
+    const ri = RECIPES.indexOf(r);
+    const isOpen = openCards.has(vi);
+    const ingTotal = r.ingredients.filter(i => i.price).reduce((s,i) => s + i.price, 0);
+    const saleCount = r.ingredients.filter(i => i.sale).length;
+
+    return `
+    <div class="rec-card" id="rec-${r.name.toLowerCase().replace(/[^a-zæøå0-9]/g,'-').replace(/-+/g,'-')}">
+      <div class="rec-header" onclick="toggleCard(${vi})">
+        <div>
+          <div class="rec-title">${r.name}</div>
+          <div class="rec-meta">
+            <span class="rec-meta-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              ${r.time}
+            </span>
+            <span class="rec-meta-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+              ${r.servings} pers.
+            </span>
+            <span class="rec-meta-item" style="color:var(--ink2)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              ${r.day}
+            </span>
+          </div>
+          <div class="rec-desc">${r.desc}</div>
+          <div class="rec-tags">
+            ${r.tags.map(t => `<span class="tag tag-gold">${t}</span>`).join('')}
+            ${saleCount ? `<span class="tag tag-forest">${saleCount} ingredienser på tilbud</span>` : ''}
+          </div>
+        </div>
+        <div class="rec-right">
+          <div>
+            <div class="rec-cost">~${r.estCost} kr</div>
+            <div class="rec-cost-label">for ${r.servings} pers.</div>
+          </div>
+          <div class="rec-toggle">${isOpen ? '▲ Skjul' : '▼ Vis opskrift'}</div>
+        </div>
+      </div>
+      <div class="rec-body${isOpen?' open':''}">
+        <div>
+          <div class="sec-label">Ingredienser</div>
+          ${r.ingredients.map(ing => `
+            <div class="ing-row">
+              <div class="ing-name">${ing.name}</div>
+              <div class="ing-qty">${ing.qty}</div>
+              ${ing.store ? `<div class="ing-store">${ing.store}</div>` : ''}
+              ${ing.price
+                ? `<div class="ing-price ${ing.sale?'sale':'norm'}">${ing.price.toFixed(2).replace('.',',')} kr${ing.sale?' 🏷':''}</div>`
+                : `<div style="font-size:12px;color:var(--ink3)">på lager</div>`
+              }
+            </div>`).join('')}
+          <div class="ing-total">
+            <span class="ing-total-label">Ingredienser i alt</span>
+            <span class="ing-total-val">~${ingTotal.toFixed(2).replace('.',',')} kr</span>
+          </div>
+        </div>
+        <div>
+          <div class="sec-label">Fremgangsmåde</div>
+          ${r.steps.map((s, i) => `
+            <div class="step-row">
+              <div class="step-num">${i+1}</div>
+              <div class="step-text">${s}</div>
+            </div>`).join('')}
+          ${r.tip ? `
+            <div class="tip-box">
+              <strong>💡 Tip:</strong> ${r.tip}
+            </div>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+renderFilters();
+renderRecipes();
+
+// Deep link: scroll to recipe from URL param ?ret=navn
+function scrollToRecipe() {
+  const params = new URLSearchParams(window.location.search);
+  const ret = params.get('ret');
+  if (!ret) return;
+
+  // Find matching recipe by name (fuzzy match)
+  const match = RECIPES.find(r =>
+    r.name.toLowerCase() === ret.toLowerCase() ||
+    r.name.toLowerCase().includes(ret.toLowerCase().substring(0, 15))
+  );
+
+  if (!match) return;
+
+  // Make sure correct protein filter is active
+  activeProteins = new Set([match.protein]);
+  renderFilters();
+  renderRecipes();
+
+  // Open the matching card
+  const idx = RECIPES.filter(r => activeProteins.has(r.protein)).indexOf(match);
+  if (idx !== -1) openCards.add(idx);
+  renderRecipes();
+
+  // Scroll to it after render
+  requestAnimationFrame(() => {
+    const slug = match.name.toLowerCase().replace(/[^a-zæøå0-9]/g,'-').replace(/-+/g,'-');
+    const el = document.getElementById('rec-' + slug);
+    if (el) {
+      setTimeout(() => {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Flash highlight
+        el.style.boxShadow = '0 0 0 3px var(--terra)';
+        el.style.transition = 'box-shadow 0.3s';
+        setTimeout(() => { el.style.boxShadow = ''; }, 2000);
+      }, 100);
+    }
+  });
+}
+
+scrollToRecipe();
+</script>
+
+  <!-- Navigation -->
+  <script src="nav.js"></script>
+  <script>buildNav('opskrifter');</script>
+</body>
+</html>

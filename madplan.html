@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Madplanen</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="nav.css">
+<style>
+:root {
+  --cream:#F7F3EC;--warm:#FDFAF5;--ink:#1C1917;--ink2:#57534E;--ink3:#A8A29E;
+  --terra:#C2522A;--terra-l:#FBEEE8;--forest:#2D5A3D;--forest-l:#E8F2EB;
+  --gold:#B45309;--gold-l:#FEF3C7;
+  --bdr:rgba(28,25,23,0.09);--bdr2:rgba(28,25,23,0.16);--r:14px;--r-sm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Instrument Sans',sans-serif;background:var(--cream);color:var(--ink);font-size:15px;line-height:1.6;padding:28px 24px 80px;max-width:960px;margin:0 auto;}
+@media(min-width:769px){body{padding-top:calc(60px + 36px) !important;}}
+@media(max-width:768px){body{padding-bottom:calc(68px + env(safe-area-inset-bottom) + 20px) !important;}}
+
+.ph{margin-bottom:28px;}
+.ph h1{font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;letter-spacing:-.03em;line-height:1.1;}
+.ph p{font-size:14px;color:var(--ink2);margin-top:5px;}
+
+/* STATUS BAR */
+.sbar{display:flex;align-items:center;gap:9px;padding:11px 16px;background:var(--warm);border:1px solid var(--bdr2);border-radius:var(--r-sm);margin-bottom:20px;font-size:13px;color:var(--ink2);}
+.sdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.dot-g{background:#22c55e;} .dot-a{background:#f59e0b;}
+
+/* FORM */
+.card{background:var(--warm);border:1px solid var(--bdr);border-radius:var(--r);padding:22px;margin-bottom:16px;}
+.card-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);margin-bottom:14px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+.fg{display:flex;flex-direction:column;gap:5px;}
+.fg label{font-size:12px;font-weight:600;color:var(--ink2);letter-spacing:.02em;}
+input,select{padding:10px 13px;border:1.5px solid var(--bdr2);border-radius:var(--r-sm);font-family:'Instrument Sans',sans-serif;font-size:14px;color:var(--ink);background:var(--warm);outline:none;transition:border-color .15s;-webkit-appearance:none;width:100%;}
+input:focus,select:focus{border-color:var(--terra);}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 22px;border:none;border-radius:var(--r-sm);font-family:'Instrument Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;width:100%;}
+.btn-primary{background:var(--terra);color:#fff;font-size:15px;padding:14px;}
+.btn-primary:hover{background:#A84224;transform:translateY(-1px);}
+.btn-primary:disabled{background:var(--ink3);transform:none;cursor:not-allowed;}
+.spin{width:17px;height:17px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:rot .7s linear infinite;}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;}
+.stat{background:var(--warm);border:1px solid var(--bdr);border-radius:var(--r-sm);padding:14px 18px;}
+.stat-v{font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:700;color:var(--ink);line-height:1;}
+.stat-l{font-size:11px;color:var(--ink3);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-top:3px;}
+
+/* BUDGET BAR */
+.bbar-wrap{margin:14px 0 0;}
+.bbar-labels{display:flex;justify-content:space-between;font-size:13px;color:var(--ink2);margin-bottom:5px;}
+.bbar{height:5px;background:var(--bdr2);border-radius:3px;overflow:hidden;}
+.bfill{height:100%;border-radius:3px;transition:width .5s ease;}
+.bf-ok{background:var(--forest);} .bf-warn{background:var(--gold);} .bf-over{background:var(--terra);}
+
+/* WEEK GRID */
+.week-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
+.day-col{background:var(--warm);border:1px solid var(--bdr);border-radius:var(--r-sm);overflow:hidden;}
+.day-hdr{background:var(--ink);color:rgba(255,255,255,.5);padding:7px 11px;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;display:flex;justify-content:space-between;}
+.day-hdr-n{font-family:'Playfair Display',serif;font-size:.95rem;font-weight:400;opacity:.35;}
+.day-body{padding:11px 12px;}
+.day-meal{font-size:13px;font-weight:600;color:var(--ink);line-height:1.3;margin-bottom:3px;}
+.day-detail{font-size:11px;color:var(--ink2);margin-bottom:7px;}
+.day-badges{display:flex;gap:4px;flex-wrap:wrap;}
+.badge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;}
+.b-rest{background:var(--gold-l);color:var(--gold);} .b-sale{background:var(--forest-l);color:var(--forest);} .b-price{background:var(--cream);color:var(--ink2);}
+
+/* RECIPES ACCORDION */
+details{border:1px solid var(--bdr);border-radius:var(--r-sm);overflow:hidden;margin-bottom:8px;background:var(--warm);}
+summary{padding:13px 16px;font-size:14px;font-weight:600;cursor:pointer;list-style:none;display:flex;justify-content:space-between;background:var(--cream);}
+summary::-webkit-details-marker{display:none;}
+summary:hover{background:#F0EBE2;}
+.rec-body{padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.rec-sec{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink3);margin-bottom:7px;}
+.rec-row{font-size:13px;padding:4px 0;border-bottom:1px solid var(--bdr);color:var(--ink2);}
+.rec-row:last-child{border-bottom:none;}
+
+/* QUICK LINKS */
+.quick-links{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:24px;}
+.qlink{display:flex;align-items:center;gap:12px;background:var(--warm);border:1px solid var(--bdr);border-radius:var(--r);padding:16px 18px;text-decoration:none;color:var(--ink);transition:all .15s;}
+.qlink:hover{border-color:var(--bdr2);box-shadow:0 2px 12px rgba(28,25,23,.08);transform:translateY(-1px);}
+.qlink-icon{width:38px;height:38px;border-radius:9px;background:var(--cream);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.qlink-icon svg{width:18px;height:18px;color:var(--ink2);}
+.qlink-title{font-size:14px;font-weight:600;color:var(--ink);}
+.qlink-sub{font-size:12px;color:var(--ink3);margin-top:1px;}
+
+/* TAGS */
+.tags-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.tag{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;}
+.tag-red{background:#FEE2E2;color:#991B1B;} .tag-grn{background:var(--forest-l);color:var(--forest);} .tag-blu{background:#DBEAFE;color:#1E40AF;}
+.tx{cursor:pointer;opacity:.5;font-size:14px;} .tx:hover{opacity:1;}
+
+@media(max-width:700px){
+  .week-grid{grid-template-columns:1fr 1fr;}
+  .form-grid{grid-template-columns:1fr;}
+  .stats-row{grid-template-columns:1fr 1fr;}
+  .quick-links{grid-template-columns:1fr;}
+  .rec-body{grid-template-columns:1fr;}
+}
+@media(max-width:480px){
+  .week-grid{grid-template-columns:1fr;}
+  .stats-row{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="ph">
+  <h1>Madplanen</h1>
+  <p>Generer din uges madplan baseret på aktuelle tilbud og dit budget</p>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 300px;gap:18px;align-items:start;">
+  <div>
+    <div class="card">
+      <div class="card-title">Opsætning</div>
+      <div class="sbar">
+        <div class="sdot dot-a" id="sDot"></div>
+        <span id="sTxt">Gå til Tilbud-fanen og hent aktuelle tilbud for bedre resultater</span>
+      </div>
+      <div class="form-grid">
+        <div class="fg"><label>Budget (kr/uge)</label><input type="number" id="budget" value="800" min="200" max="3000"></div>
+        <div class="fg"><label>Antal personer</label><select id="persons"><option value="1">1 person</option><option value="2" selected>2 personer</option><option value="3">3 personer</option><option value="4">4 personer</option></select></div>
+      </div>
+      <div class="form-grid">
+        <div class="fg"><label>Postnummer</label><input type="text" id="zipcode" value="2770" maxlength="4"></div>
+        <div class="fg"><label>Særlige ønsker</label><input type="text" id="wishes" placeholder="Eks: ingen ris 2x…"></div>
+      </div>
+      <button class="btn btn-primary" id="genBtn" onclick="genPlan()">
+        <span id="genTxt">Generer madplan</span>
+        <div class="spin" id="genSpin" style="display:none"></div>
+      </button>
+    </div>
+  </div>
+  <div>
+    <div class="card" id="bcard" style="display:none">
+      <div class="card-title">Budget</div>
+      <div id="bdisplay"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Regler</div>
+      <div style="font-size:13px;color:var(--ink2);line-height:2.1">
+        Dag 2 = rester fra dag 1<br>
+        Maks 2 dage samme protein<br>
+        Skeler til aktuelle tilbud<br>
+        Sundhedsstyrelsen-venlig<br>
+        Husker dine præferencer
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="planOut" style="display:none;margin-top:20px">
+  <div class="stats-row" id="statRow"></div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+      <div class="card-title" style="margin-bottom:0">5-dages plan</div>
+      <div style="display:flex;gap:8px">
+        <a href="indkobsliste.html" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:var(--warm);border:1.5px solid var(--bdr2);border-radius:var(--r-sm);font-size:13px;font-weight:600;color:var(--ink);text-decoration:none;">🛒 Indkøbsliste</a>
+        <a href="opskrifter.html" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:var(--warm);border:1.5px solid var(--bdr2);border-radius:var(--r-sm);font-size:13px;font-weight:600;color:var(--ink);text-decoration:none;">📖 Opskrifter</a>
+      </div>
+    </div>
+    <div class="week-grid" id="weekGrid"></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="card-title">Opskrifter — klik for at folde ud</div>
+    <div id="recOut"></div>
+  </div>
+</div>
+
+<!-- QUICK LINKS when no plan yet -->
+<div id="quickLinks" class="quick-links">
+  <a href="tilbud.html" class="qlink">
+    <div class="qlink-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></div>
+    <div><div class="qlink-title">Hent tilbud</div><div class="qlink-sub">Se aktuelle priser fra dine butikker</div></div>
+  </a>
+  <a href="opskrifter.html" class="qlink">
+    <div class="qlink-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a10 10 0 100 20 10 10 0 000-20z"/><path d="M12 8v4l3 3"/></svg></div>
+    <div><div class="qlink-title">Opskrifter</div><div class="qlink-sub">Se ugens 5 opskrifter</div></div>
+  </a>
+  <a href="indkobsliste.html" class="qlink">
+    <div class="qlink-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg></div>
+    <div><div class="qlink-title">Indkøbsliste</div><div class="qlink-sub">Sorteret efter butik og kategori</div></div>
+  </a>
+  <a href="praeferencer.html" class="qlink">
+    <div class="qlink-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+    <div><div class="qlink-title">Præferencer</div><div class="qlink-sub">Kan ikke lide, favoritter, diæt</div></div>
+  </a>
+</div>
+
+<script>
+let S = {priceDB:{},offers:[],prefs:{dislikes:[],favorites:[],allergies:'',diet:'',history:[]},plan:null};
+function save(){try{localStorage.setItem('mp6',JSON.stringify(S));}catch(e){}}
+function load(){try{const d=localStorage.getItem('mp6');if(d)S={...S,...JSON.parse(d)};}catch(e){}renderStatus();if(S.plan){renderPlan(S.plan);document.getElementById('quickLinks').style.display='none';}}
+
+function renderStatus(){
+  const n=(S.offers||[]).filter(o=>o.src==='ai').length;
+  const dot=document.getElementById('sDot');const txt=document.getElementById('sTxt');if(!dot)return;
+  if(n>0){dot.className='sdot dot-g';txt.textContent=n+' tilbud hentet og klar til brug';}
+  else{dot.className='sdot dot-a';txt.textContent='Ingen tilbud — gå til Tilbud-fanen og hent aktuelle priser';}
+}
+
+async function claude(prompt,max=4000){
+  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:max,messages:[{role:'user',content:prompt}]})});
+  if(!r.ok)throw new Error('API fejl '+r.status);
+  const d=await r.json();return d.content.map(c=>c.text||'').join('');
+}
+
+async function genPlan(){
+  const budget=parseInt(document.getElementById('budget').value);
+  const persons=parseInt(document.getElementById('persons').value);
+  const extra=document.getElementById('wishes').value;
+  const btn=document.getElementById('genBtn');
+  btn.disabled=true;
+  document.getElementById('genTxt').textContent='Genererer…';
+  document.getElementById('genSpin').style.display='block';
+
+  const offStr=(S.offers||[]).filter(o=>o.price>0).slice(0,35).map(o=>`${o.name}: ${o.price.toFixed(2)} kr (${o.store})`).join('\n')||'Ingen tilbud';
+  const dl=(S.prefs.dislikes||[]).join(', ')||'ingen';
+  const fav=(S.prefs.favorites||[]).join(', ')||'ingen';
+  const hist=(S.prefs.history||[]).slice(-8).join(', ')||'ingen';
+
+  try{
+    const raw=await claude(`Lav 5-dages dansk madplan. BUDGET:${budget}kr · PERSONER:${persons} · ØNSKER:${extra||'ingen'} · ALLERGIER:${S.prefs.allergies||'ingen'} · DIÆT:${S.prefs.diet||'ingen'}\nTILBUD:\n${offStr}\nUNDGÅ:${dl} · FAVORITTER:${fav} · HISTORIK:${hist}\nREGLER: Dag1+2=ret+rester,Dag3+4=ret+rester,Dag5=ny. MAX 2 dage samme protein. Brug tilbud smart. Hold budget. Lækre retter.\nSvar KUN JSON: {"days":[{"day":"Mandag","dinner":"navn","detail":"kort","isLeftovers":false,"protein":"kylling","tilbud":true,"estimatedCost":85,"store":"Netto"}],"totalEstimated":620,"notes":"sætning","priceHints":[{"item":"kyllingebryster","estimatedPrice":39,"unit":"1kg","store":"Netto"}],"recipes":[{"name":"navn","ingredients":["500g kylling"],"steps":["1. ..."],"time":"30 min","servings":${persons*2}}]}`);
+    const plan=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    S.plan=plan;
+    (plan.priceHints||[]).forEach(h=>{const k=h.item.toLowerCase().trim();S.priceDB[k]={price:h.estimatedPrice,unit:h.unit,store:h.store,updated:new Date().toLocaleDateString('da-DK')};});
+    const nd=(plan.days||[]).filter(d=>!d.isLeftovers).map(d=>d.dinner);
+    S.prefs.history=[...(S.prefs.history||[]),...nd].slice(-30);
+    save();renderPlan(plan);
+    document.getElementById('quickLinks').style.display='none';
+  }catch(e){alert('Fejl: '+e.message);}
+
+  btn.disabled=false;
+  document.getElementById('genTxt').textContent='Generer madplan';
+  document.getElementById('genSpin').style.display='none';
+}
+
+function renderPlan(plan){
+  const budget=parseInt(document.getElementById('budget').value)||800;
+  const pct=Math.round((plan.totalEstimated/budget)*100);
+  const pc=pct>100?'var(--terra)':pct>85?'var(--gold)':'var(--forest)';
+  document.getElementById('planOut').style.display='block';
+  document.getElementById('statRow').innerHTML=`
+    <div class="stat"><div class="stat-v" style="color:${pc}">${plan.totalEstimated}<span style="font-size:1rem"> kr</span></div><div class="stat-l">Estimeret</div></div>
+    <div class="stat"><div class="stat-v">${budget}<span style="font-size:1rem"> kr</span></div><div class="stat-l">Budget</div></div>
+    <div class="stat"><div class="stat-v" style="color:${pc}">${pct}<span style="font-size:1rem">%</span></div><div class="stat-l">Brugt · ${plan.notes||''}</div></div>`;
+  document.getElementById('bcard').style.display='block';
+  document.getElementById('bdisplay').innerHTML=`<div class="bbar-wrap"><div class="bbar-labels"><span style="font-weight:600">${plan.totalEstimated} kr</span><span style="color:var(--ink3)">Budget: ${budget} kr</span></div><div class="bbar"><div class="bfill ${pct>100?'bf-over':pct>85?'bf-warn':'bf-ok'}" style="width:${Math.min(pct,100)}%"></div></div></div>`;
+  const days=['Man','Tir','Ons','Tor','Fre'];
+  document.getElementById('weekGrid').innerHTML=(plan.days||[]).map((d,i)=>`
+    <div class="day-col">
+      <div class="day-hdr"><span>${d.day||days[i]}</span><span class="day-hdr-n">${i+1}</span></div>
+      <div class="day-body">
+        <div class="day-meal">${d.dinner}</div>
+        <div class="day-detail">${d.detail||''}</div>
+        <div class="day-badges">
+          ${d.isLeftovers?'<span class="badge b-rest">← Rester</span>':''}
+          ${d.tilbud?'<span class="badge b-sale">Tilbud</span>':''}
+          ${d.estimatedCost?`<span class="badge b-price">~${d.estimatedCost} kr</span>`:''}
+        </div>
+      </div>
+    </div>`).join('');
+  document.getElementById('recOut').innerHTML=(plan.recipes||[]).map(r=>`
+    <details>
+      <summary><span>${r.name}</span><span style="font-size:12px;color:var(--ink3);font-weight:400">${r.time||''} · ${r.servings||''} pers.</span></summary>
+      <div class="rec-body">
+        <div><div class="rec-sec">Ingredienser</div>${(r.ingredients||[]).map(i=>`<div class="rec-row">${i}</div>`).join('')}</div>
+        <div><div class="rec-sec">Fremgangsmåde</div>${(r.steps||[]).map(s=>`<div class="rec-row">${s}</div>`).join('')}</div>
+      </div>
+    </details>`).join('');
+}
+
+load();
+</script>
+
+<script src="nav.js"></script>
+<script>buildNav('madplan');</script>
+</body>
+</html>

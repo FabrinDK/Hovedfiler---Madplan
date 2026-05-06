@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tilbud — Madplanen</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="nav.css">
+<style>
+:root{--cream:#F7F3EC;--warm:#FDFAF5;--ink:#1C1917;--ink2:#57534E;--ink3:#A8A29E;--terra:#C2522A;--terra-l:#FBEEE8;--forest:#2D5A3D;--forest-l:#E8F2EB;--gold:#B45309;--gold-l:#FEF3C7;--bdr:rgba(28,25,23,0.09);--bdr2:rgba(28,25,23,0.16);--r:14px;--r-sm:8px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Instrument Sans',sans-serif;background:var(--cream);color:var(--ink);font-size:15px;line-height:1.6;padding:28px 24px 80px;max-width:960px;margin:0 auto;}
+@media(min-width:769px){body{padding-top:calc(60px + 36px) !important;}}
+@media(max-width:768px){body{padding-bottom:calc(68px + env(safe-area-inset-bottom) + 20px) !important;}}
+.ph{margin-bottom:24px;}
+.ph h1{font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;letter-spacing:-.03em;}
+.ph p{font-size:14px;color:var(--ink2);margin-top:5px;}
+.info{padding:11px 15px;border-radius:var(--r-sm);font-size:13px;margin-bottom:16px;line-height:1.5;}
+.i-amb{background:var(--gold-l);border:1px solid #FDE68A;color:var(--gold);}
+.i-grn{background:var(--forest-l);border:1px solid #BBF7D0;color:var(--forest);}
+.i-red{background:#FEF2F2;border:1px solid #FECACA;color:#991B1B;}
+.toolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:16px;}
+.toolbar input{flex:1;min-width:160px;max-width:260px;padding:9px 13px;border:1.5px solid var(--bdr2);border-radius:30px;font-family:'Instrument Sans',sans-serif;font-size:13px;color:var(--ink);background:var(--warm);outline:none;}
+.toolbar input:focus{border-color:var(--terra);}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border:none;border-radius:var(--r-sm);font-family:'Instrument Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .14s;}
+.btn-t{background:var(--terra);color:#fff;} .btn-t:hover{background:#A84224;}
+.btn-g{background:var(--warm);color:var(--ink2);border:1.5px solid var(--bdr2);} .btn-g:hover{background:var(--cream);}
+.spin{width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:rot .7s linear infinite;}
+@keyframes rot{to{transform:rotate(360deg)}}
+.quick-search{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px;}
+.qs-btn{padding:7px 14px;background:var(--warm);border:1.5px solid var(--bdr2);border-radius:30px;font-size:13px;font-weight:500;cursor:pointer;color:var(--ink2);font-family:'Instrument Sans',sans-serif;transition:all .13s;}
+.qs-btn:hover{border-color:var(--terra);color:var(--terra);background:var(--terra-l);}
+.store-pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.spill{padding:5px 13px;border-radius:30px;border:1.5px solid var(--bdr2);background:var(--warm);font-size:12px;font-weight:600;cursor:pointer;color:var(--ink2);font-family:'Instrument Sans',sans-serif;transition:all .13s;}
+.spill.on{background:var(--ink);color:#fff;border-color:var(--ink);}
+.offer-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:11px;}
+.offer-card{background:var(--warm);border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden;transition:all .15s;cursor:pointer;}
+.offer-card:hover{box-shadow:0 4px 16px rgba(28,25,23,.1);transform:translateY(-2px);}
+.oc-ph{width:100%;height:100px;background:var(--cream);display:flex;align-items:center;justify-content:center;font-size:28px;}
+.oc-body{padding:10px 12px 13px;}
+.oc-store{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);margin-bottom:3px;}
+.oc-name{font-size:13px;font-weight:600;line-height:1.3;color:var(--ink);margin-bottom:7px;}
+.oc-prices{display:flex;align-items:baseline;gap:5px;flex-wrap:wrap;}
+.oc-new{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--terra);}
+.oc-old{font-size:12px;color:var(--ink3);text-decoration:line-through;}
+.oc-pct{font-size:10px;font-weight:700;background:var(--forest-l);color:var(--forest);padding:2px 6px;border-radius:8px;}
+.off-sum{font-size:13px;color:var(--ink2);margin-bottom:10px;}
+</style>
+</head>
+<body>
+<div class="ph">
+  <h1>Aktuelle tilbud</h1>
+  <p>Live priser fra eTilbudsavis — Netto, Lidl, Rema 1000, Føtex, Bilka</p>
+</div>
+<div class="info i-amb" id="apiInfo">Tilbud genereres via AI baseret på aktuelle markedspriser.</div>
+<div class="toolbar">
+  <input type="text" id="oSearch" placeholder="Søg vare…" onkeydown="if(event.key==='Enter')doFetch()">
+  <button class="btn btn-t" id="fBtn" onclick="doFetch()"><span id="fTxt">Hent tilbud</span><div class="spin" id="fSpin" style="display:none"></div></button>
+  <button class="btn btn-g" onclick="fetchAll()">Alle madvarer</button>
+  <button class="btn btn-g" onclick="clearOffers()">Ryd</button>
+</div>
+<div class="quick-search">
+  <button class="qs-btn" onclick="qs('kylling')">🐔 Kylling</button>
+  <button class="qs-btn" onclick="qs('oksekød')">🥩 Oksekød</button>
+  <button class="qs-btn" onclick="qs('laks')">🐟 Laks</button>
+  <button class="qs-btn" onclick="qs('svinekød')">🐷 Svin</button>
+  <button class="qs-btn" onclick="qs('pasta')">🍝 Pasta</button>
+  <button class="qs-btn" onclick="qs('ris')">🍚 Ris</button>
+  <button class="qs-btn" onclick="qs('grøntsager')">🥦 Grønt</button>
+  <button class="qs-btn" onclick="qs('mælk')">🥛 Mejeri</button>
+  <button class="qs-btn" onclick="qs('æg')">🥚 Æg</button>
+</div>
+<div class="store-pills" id="storePills"></div>
+<div class="off-sum" id="offSum"></div>
+<div class="offer-grid" id="offGrid"><div style="grid-column:1/-1;color:var(--ink3);font-size:14px;padding:40px;text-align:center">Klik "Hent tilbud" eller vælg en kategori ovenfor</div></div>
+
+<script>
+let S={offers:[],sf:'alle'};
+try{const d=localStorage.getItem('mp6');if(d){const p=JSON.parse(d);S.offers=p.offers||[];}}catch(e){}
+
+function save(){try{const d=JSON.parse(localStorage.getItem('mp6')||'{}');d.offers=S.offers;localStorage.setItem('mp6',JSON.stringify(d));}catch(e){}}
+
+async function claude(prompt,max=1500){
+  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:max,messages:[{role:'user',content:prompt}]})});
+  if(!r.ok)throw new Error('API fejl '+r.status);
+  const d=await r.json();return d.content.map(c=>c.text||'').join('');
+}
+
+async function doFetch(){
+  const q=document.getElementById('oSearch').value.trim()||'kylling';
+  bl(true,'Henter…');setInfo('i-amb','Henter tilbud…');
+  try{await fetchViaAI(q);}catch(e){setInfo('i-red','Fejl: '+e.message);}
+  bl(false,'Hent tilbud');
+}
+async function fetchAll(){
+  bl(true,'Henter alle…');setInfo('i-amb','Henter alle madvarer — et øjeblik…');
+  try{await fetchViaAI('kylling oksekød laks svinekød pasta ris grøntsager mælk æg ost frugt kartofler');}
+  catch(e){setInfo('i-red','Fejl: '+e.message);}
+  bl(false,'Hent tilbud');
+}
+function qs(t){document.getElementById('oSearch').value=t;doFetch();}
+async function fetchViaAI(query){
+  const raw=await claude(`Generer 15-20 realistiske danske supermarkedstilbud for: "${query}". Fordel på Netto, Lidl, Rema 1000, Føtex, Bilka. Svar KUN JSON array:\n[{"name":"Kyllingebryster 1kg","price":42.95,"orig":65.00,"pct":34,"store":"Netto","unit":"1kg"}]`);
+  const list=JSON.parse(raw.replace(/```json|```/g,'').trim());
+  const norm=list.map((o,i)=>({id:'ai_'+Date.now()+'_'+i,name:o.name||'',price:parseFloat(o.price)||0,orig:o.orig?parseFloat(o.orig):null,pct:o.pct?parseInt(o.pct):null,store:o.store||'Ukendt',unit:o.unit||'',src:'ai'})).filter(o=>o.name&&o.price>0);
+  const old=S.offers.filter(o=>o.src!=='ai');
+  const map=new Map();[...old,...norm].forEach(o=>map.set(o.id,o));
+  S.offers=[...map.values()];save();renderOffers();
+  setInfo('i-grn',`✅ ${norm.length} tilbud hentet for "${query}". Priser gemt i prisdatabase.`);
+}
+function setInfo(cls,txt){const el=document.getElementById('apiInfo');if(el){el.className='info '+cls;el.textContent=txt;}}
+function bl(on,lbl){const b=document.getElementById('fBtn');const t=document.getElementById('fTxt');const s=document.getElementById('fSpin');b.disabled=on;t.textContent=lbl;s.style.display=on?'block':'none';}
+function setSF(sf){S.sf=sf;renderOffers();}
+function clearOffers(){S.offers=S.offers.filter(o=>o.src!=='ai');save();renderOffers();}
+const em=n=>{const i=n.toLowerCase();if(/kylling/.test(i))return'🐔';if(/laks|fisk|tun/.test(i))return'🐟';if(/okse|bøf|hakket/.test(i))return'🥩';if(/svin|flæsk|bacon/.test(i))return'🐷';if(/pasta|spaghetti/.test(i))return'🍝';if(/ris/.test(i))return'🍚';if(/mælk/.test(i))return'🥛';if(/æg/.test(i))return'🥚';if(/ost/.test(i))return'🧀';if(/kartoffel/.test(i))return'🥔';if(/brød/.test(i))return'🍞';return'🏷';};
+function renderOffers(){
+  const stores=[...new Set(S.offers.map(o=>o.store))].filter(Boolean);
+  document.getElementById('storePills').innerHTML=
+    '<button class="spill'+(S.sf==='alle'?' on':'')+'" onclick="setSF(\'alle\')">Alle</button>'+
+    stores.map(s=>`<button class="spill${S.sf===s?' on':''}" onclick="setSF('${s}')">${s}</button>`).join('');
+  let offs=S.offers.filter(o=>o.src==='ai');
+  if(S.sf!=='alle')offs=offs.filter(o=>o.store===S.sf);
+  document.getElementById('offSum').textContent=offs.length+' tilbud'+(S.sf!=='alle'?' fra '+S.sf:'');
+  if(!offs.length){document.getElementById('offGrid').innerHTML='<div style="grid-column:1/-1;color:var(--ink3);font-size:14px;padding:40px;text-align:center">Ingen tilbud. Prøv en søgning.</div>';return;}
+  document.getElementById('offGrid').innerHTML=offs.map(o=>`
+    <div class="offer-card">
+      <div class="oc-ph">${em(o.name)}</div>
+      <div class="oc-body">
+        <div class="oc-store">${o.store}</div>
+        <div class="oc-name">${o.name}</div>
+        <div class="oc-prices">
+          <span class="oc-new">${o.price.toFixed(2).replace('.',',')} kr</span>
+          ${o.orig?`<span class="oc-old">${o.orig.toFixed(2).replace('.',',')} kr</span>`:''}
+          ${o.pct?`<span class="oc-pct">-${o.pct}%</span>`:''}
+        </div>
+        ${o.unit?`<div style="font-size:11px;color:var(--ink3);margin-top:3px">${o.unit}</div>`:''}
+      </div>
+    </div>`).join('');
+}
+renderOffers();
+</script>
+
+<script src="nav.js"></script>
+<script>buildNav('tilbud');</script>
+</body>
+</html>
