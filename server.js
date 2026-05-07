@@ -314,8 +314,20 @@ app.get('/api/offers/refresh-stream', async (req, res) => {
         const list = Array.isArray(data) ? data : (data.results || []);
         let termSaved = 0;
 
+        // Log første tilbud så vi kan se strukturen
+        if (list.length > 0) {
+          const sample = list[0];
+          console.log(`Sample fra "${term}":`, JSON.stringify({
+            id: sample.id,
+            heading: sample.heading,
+            pricing: sample.pricing,
+            has_price: sample.pricing?.price?.amount
+          }));
+        }
+
         for (const o of list) {
-          const id = o.id;
+          // Brug id eller generer et unikt id baseret på navn+butik
+          const id = o.id || (o.heading + '|' + (o.branding?.name || '') + '|' + (o.pricing?.price?.amount || '')).toLowerCase().replace(/[^a-zæøå0-9|]/g, '').substring(0, 80);
           if (!id || seen.has(id)) continue;
           seen.add(id);
           const price = o.pricing?.price?.amount != null ? o.pricing.price.amount / 100 : null;

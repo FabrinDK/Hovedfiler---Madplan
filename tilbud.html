@@ -257,6 +257,11 @@ async function fetchFromDB(query) {
 }
 
 // ── MANUEL OPDATERING FRA ETILBUDSAVIS ──
+function closeModal() {
+  document.getElementById('progressModal').classList.remove('show');
+  fetchFromDB('');
+}
+
 async function manualRefresh() {
   const adminKey = sessionStorage.getItem('admin_key') || prompt('Indtast admin-nøgle:');
   if (!adminKey) return;
