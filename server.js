@@ -321,17 +321,22 @@ app.get('/api/offers/refresh-stream', async (req, res) => {
             id: sample.id,
             heading: sample.heading,
             pricing: sample.pricing,
-            has_price: sample.pricing?.price?.amount
+            has_price: sample.pricing?.price
           }));
         }
 
         for (const o of list) {
           // Brug id eller generer et unikt id baseret på navn+butik
-          const id = o.id || (o.heading + '|' + (o.branding?.name || '') + '|' + (o.pricing?.price?.amount || '')).toLowerCase().replace(/[^a-zæøå0-9|]/g, '').substring(0, 80);
+          const id = o.id || (o.heading + '|' + (o.branding?.name || '') + '|' + (o.pricing?.price || '')).toLowerCase().replace(/[^a-zæøå0-9|]/g, '').substring(0, 80);
           if (!id || seen.has(id)) continue;
           seen.add(id);
-          const price = o.pricing?.price?.amount != null ? o.pricing.price.amount / 100 : null;
+          // API returnerer pris direkte i DKK (ikke i øre)
+          const price = o.pricing?.price != null ? parseFloat(o.pricing.price) : null;
           if (!price || !o.heading) continue;
+
+          const origPrice = o.pricing?.pre_price != null ? parseFloat(o.pricing.pre_price) : null;
+          const pctOff = origPrice && price ? Math.round((1 - price / origPrice) * 100) : null;
+
           try {
             await db.query(`
               INSERT INTO offers (id, name, price, orig_price, pct_off, store, unit, img_url, valid_till, category, fetched_at)
@@ -339,8 +344,8 @@ app.get('/api/offers/refresh-stream', async (req, res) => {
               ON CONFLICT (id) DO UPDATE SET price=$3, orig_price=$4, pct_off=$5, img_url=$8, valid_till=$9, fetched_at=NOW()
             `, [
               id, o.heading, price,
-              o.pricing?.pre_price?.amount != null ? o.pricing.pre_price.amount / 100 : null,
-              o.pricing?.discount != null ? Math.round(o.pricing.discount) : null,
+              origPrice,
+              pctOff,
               o.branding?.name || 'Ukendt',
               o.quantity?.unit || null,
               o.images?.view || o.images?.thumb || null,
@@ -468,15 +473,17 @@ async function fetchAndSaveOffers() {
         if (seen.has(id)) return;
         seen.add(id);
 
-        const price = o.pricing?.price?.amount != null ? o.pricing.price.amount / 100 : null;
+        // API returnerer pris direkte i DKK
+        const price = o.pricing?.price != null ? parseFloat(o.pricing.price) : null;
         if (!price || !o.heading) return;
 
+        const origPrice = o.pricing?.pre_price != null ? parseFloat(o.pricing.pre_price) : null;
         allOffers.push({
           id,
           name: o.heading,
           price,
-          orig_price: o.pricing?.pre_price?.amount != null ? o.pricing.pre_price.amount / 100 : null,
-          pct_off: o.pricing?.discount != null ? Math.round(o.pricing.discount) : null,
+          orig_price: origPrice,
+          pct_off: origPrice && price ? Math.round((1 - price / origPrice) * 100) : null,
           store: o.branding?.name || 'Ukendt',
           unit: o.quantity?.unit || null,
           img_url: o.images?.view || o.images?.thumb || null,
