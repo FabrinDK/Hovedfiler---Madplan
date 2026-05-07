@@ -84,6 +84,16 @@ body{font-family:'Instrument Sans',sans-serif;background:var(--cream);color:var(
 .oc-old{font-size:12px;color:var(--ink3);text-decoration:line-through;}
 .oc-till{font-size:11px;color:var(--ink3);margin-top:2px;}
 
+/* TOAST */
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:10px 20px;border-radius:30px;font-size:13px;font-weight:600;opacity:0;transition:all .3s;z-index:2000;white-space:nowrap;pointer-events:none;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+@media(min-width:769px){.toast{bottom:24px;}}
+
+/* ADD TO LIST BUTTON on card */
+.oc-add-btn{width:100%;margin-top:8px;padding:8px;border:1.5px solid var(--bdr2);border-radius:var(--r-sm);background:transparent;font-family:'Instrument Sans',sans-serif;font-size:12px;font-weight:600;color:var(--ink2);cursor:pointer;transition:all .14s;display:flex;align-items:center;justify-content:center;gap:5px;}
+.oc-add-btn:hover{background:var(--forest);color:#fff;border-color:var(--forest);}
+.oc-add-btn.added{background:var(--forest-l);color:var(--forest);border-color:var(--forest);}
+
 /* EMPTY STATE */
 .empty{text-align:center;padding:60px 20px;color:var(--ink3);font-size:15px;grid-column:1/-1;}
 .empty-icon{font-size:40px;margin-bottom:12px;}
@@ -163,6 +173,9 @@ body{font-family:'Instrument Sans',sans-serif;background:var(--cream);color:var(
     Klik "Hent tilbud" eller vælg en kategori
   </div>
 </div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
 
 <!-- PROGRESS MODAL -->
 <div class="modal-overlay" id="progressModal">
@@ -275,6 +288,67 @@ function clearOffers() {
 }
 
 // ── RENDER ──
+// ── TOAST ──
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── TILFØJ TIL INDKØBSLISTE ──
+function addToList(id, name, price, store, unit, event) {
+  event.stopPropagation();
+  const btn = event.currentTarget;
+
+  // Hent eksisterende indkøbsliste fra localStorage
+  let S6 = {};
+  try { S6 = JSON.parse(localStorage.getItem('mp6') || '{}'); } catch(e) {}
+  if (!S6.shopList) S6.shopList = {};
+
+  // Kategoriser varen
+  const cat = categorizeItem(name);
+  if (!S6.shopList[cat]) S6.shopList[cat] = [];
+
+  // Tjek om den allerede er tilføjet
+  const exists = S6.shopList[cat].some(i => i.offerId === id);
+  if (exists) {
+    showToast('Allerede på indkøbslisten');
+    return;
+  }
+
+  // Tilføj
+  const label = name + (unit ? ' · ' + unit : '') + ' · ' + price.toFixed(2).replace('.', ',') + ' kr (' + store + ')';
+  S6.shopList[cat].push({
+    name: label,
+    checked: false,
+    offerId: id,
+    price: price,
+    store: store
+  });
+
+  try { localStorage.setItem('mp6', JSON.stringify(S6)); } catch(e) {}
+
+  btn.classList.add('added');
+  btn.innerHTML = '✓ Tilføjet';
+  showToast(name.substring(0, 30) + ' tilføjet til indkøbsliste');
+}
+
+function categorizeItem(name) {
+  const n = name.toLowerCase();
+  if (/kylling|okse|svin|lam|bacon|pølse|fisk|laks|tun|rejer/.test(n)) return '🥩 Kød & fisk';
+  if (/mælk|ost|smør|fløde|yoghurt|skyr|æg|creme/.test(n)) return '🧀 Mejeri & æg';
+  if (/kartoffel|gulerod|løg|tomat|salat|broccoli|peberfrugt|champignon|spinat|agurk|frugt|æble|banan/.test(n)) return '🥦 Grøntsager & frugt';
+  if (/pasta|spaghetti|ris|mel|havregryn|musli|linser|kikærter|nødder/.test(n)) return '🌾 Tørvarer';
+  if (/brød|bolle|rugbrød|toast|kiks/.test(n)) return '🍞 Brød';
+  if (/sodavand|cola|juice|vand|øl|vin|kaffe|te/.test(n)) return '🧃 Drikkevarer';
+  if (/shampoo|tandpasta|deodorant|creme|sæbe|barbering|shower/.test(n)) return '🧴 Personlig pleje';
+  if (/toiletpapir|køkkenrulle|bleer|ble|vådservietter/.test(n)) return '🚿 Badeværelse';
+  if (/opvask|vaskepulver|rengøring|skyllemiddel/.test(n)) return '🧹 Rengøring';
+  if (/baby|babymad|pampers|huggies/.test(n)) return '👶 Baby';
+  return '🛒 Andet';
+}
+
 function setSF(s) { S.sf = s; renderOffers(); }
 
 function renderOffers() {
@@ -334,6 +408,10 @@ function renderOffers() {
           ${o.orig ? `<span class="oc-old">${o.orig.toFixed(2).replace('.',',')} kr</span>` : ''}
         </div>
         ${till ? `<div class="oc-till">Gælder t/m ${till}</div>` : ''}
+        <button class="oc-add-btn" onclick="addToList('${o.id}','${o.name.replace(/'/g,"\'")}',${o.price},'${o.store}','${o.unit||''}',event)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Tilføj til indkøbsliste
+        </button>
       </div>
     </div>`;
   }).join('');
