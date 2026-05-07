@@ -337,6 +337,10 @@ app.get('/api/offers/refresh-stream', async (req, res) => {
           const origPrice = o.pricing?.pre_price != null ? parseFloat(o.pricing.pre_price) : null;
           const pctOff = origPrice && price ? Math.round((1 - price / origPrice) * 100) : null;
 
+          // Rens unit-feltet — eTilbudsavis returnerer JSON-lignende strenge
+          const rawUnit = o.quantity?.unit || '';
+          const cleanUnit = cleanUnitString(rawUnit);
+
           try {
             await db.query(`
               INSERT INTO offers (id, name, price, orig_price, pct_off, store, unit, img_url, valid_till, category, fetched_at)
@@ -347,7 +351,7 @@ app.get('/api/offers/refresh-stream', async (req, res) => {
               origPrice,
               pctOff,
               o.branding?.name || 'Ukendt',
-              o.quantity?.unit || null,
+              cleanUnit || null,
               o.images?.view || o.images?.thumb || null,
               o.run_till || null,
               term
@@ -413,6 +417,25 @@ const SEARCH_TERMS = [
   'mælk', 'ost', 'æg', 'smør', 'fløde',
   'frugt', 'tomater', 'løg', 'gulerødder', 'salat'
 ];
+
+// Renser eTilbudsavis unit-strenge som '{"symbol":"g","si":{"symbol":"kg","factor":0.001}}'
+function cleanUnitString(raw) {
+  if (!raw) return '';
+  // Hvis det ligner JSON, parse det
+  if (raw.startsWith('{') || raw.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(raw);
+      // Brug symbol direkte
+      if (parsed.symbol) return parsed.symbol;
+      if (parsed.si?.symbol) return parsed.si.symbol;
+    } catch(e) {}
+    // Regex fallback — udtræk første "symbol":"xxx"
+    const m = raw.match(/"symbol"\s*:\s*"([^"]+)"/);
+    if (m) return m[1];
+    return '';
+  }
+  return raw.trim();
+}
 
 async function fetchAndSaveOffers() {
   console.log('Starter tilbudshentning fra eTilbudsavis...');
@@ -485,7 +508,7 @@ async function fetchAndSaveOffers() {
           orig_price: origPrice,
           pct_off: origPrice && price ? Math.round((1 - price / origPrice) * 100) : null,
           store: o.branding?.name || 'Ukendt',
-          unit: o.quantity?.unit || null,
+          unit: cleanUnitString(o.quantity?.unit || '') || null,
           img_url: o.images?.view || o.images?.thumb || null,
           valid_till: o.run_till || null,
           category: term
