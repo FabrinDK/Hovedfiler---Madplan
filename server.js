@@ -338,7 +338,10 @@ app.get('/api/offers/refresh-stream', async (req, res) => {
             termSaved++;
             totalSaved++;
           } catch(dbErr) {
-            // Ignorer duplikater
+            if (!dbErr.message.includes('duplicate')) {
+              console.error('DB insert fejl:', dbErr.message, 'for id:', id);
+              send({ type: 'warning', term, message: `DB fejl: ${dbErr.message.substring(0,80)}` });
+            }
           }
         }
 
