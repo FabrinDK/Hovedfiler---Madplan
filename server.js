@@ -288,7 +288,9 @@ app.get('/api/offers/refresh-stream', async (req, res) => {
     while (hasMore) {
       pageNum++;
       const params = new URLSearchParams({
-        r_locale: 'da_DK', offset, limit
+        r_locale: 'da_DK', offset, limit,
+        r_lat: 55.6272, r_lng: 12.6019,
+        r_radius: 200000
       });
 
       send({ type: 'progress', current: pageNum, total: '?', message: `Henter side ${pageNum} (${offset}-${offset+limit})...` });
@@ -367,10 +369,20 @@ app.get('/api/offers/refresh-stream', async (req, res) => {
       if (pageNum >= 50) { hasMore = false; }
     }
 
+    // Supplement med direkte dealer-hentning
+    send({ type: 'progress', current: pageNum+1, total: pageNum+Object.keys(DEALER_PUBLIC_IDS).length+1, message: 'Henter direkte fra kendte dealers...' });
+
+    for (const [name, id] of Object.entries(DEALER_PUBLIC_IDS)) {
+      send({ type: 'progress', current: pageNum+1, total: '?', message: `Henter ${name} direkte...` });
+      const extra = await fetchDealerOffers(name, id).catch(() => 0);
+      totalSaved += extra;
+      send({ type: 'term_done', term: name + ' (direkte)', found: extra, saved: extra, total_so_far: totalSaved });
+    }
+
     await db.query('INSERT INTO offer_fetch_log (offer_count, status) VALUES ($1, $2)', [totalSaved, 'success'])
       .catch(() => {});
 
-    send({ type: 'done', total_saved: totalSaved, message: `✅ Færdig! ${totalSaved} dagligvaretilbud gemt fra ${pageNum} sider.` });
+    send({ type: 'done', total_saved: totalSaved, message: `✅ Færdig! ${totalSaved} dagligvaretilbud gemt.` });
 
   } catch(e) {
     send({ type: 'error', message: e.message });
@@ -426,6 +438,14 @@ const HOUSEHOLD_CATEGORIES = {
   'kæledyr':     ['hundemad','kattemad','kattemad','dyremad','kattegrus','hundesnack','fuglefoder'],
 };
 
+// Verificerede dealer public IDs fra etilbudsavis.dk
+// Kilde: publicId feltet fra etilbudsavis.dk butikssider
+const DEALER_PUBLIC_IDS = {
+  'Netto':        '9ba51',
+  'REMA 1000':    '11deC',
+  // Tilføj flere når vi finder dem
+};
+
 // Kun disse butikker vises
 const VALID_STORES = new Set([
   'netto','rema 1000','rema1000','lidl','føtex','foetex','bilka',
@@ -468,7 +488,9 @@ async function fetchAndSaveOffers() {
     pageNum++;
     try {
       const params = new URLSearchParams({
-        r_locale: 'da_DK', offset, limit
+        r_locale: 'da_DK', offset, limit,
+        r_lat: 55.6272, r_lng: 12.6019,
+        r_radius: 200000  // 200 km radius — henter hele Danmark
       });
 
       const controller = new AbortController();
@@ -486,7 +508,11 @@ async function fetchAndSaveOffers() {
         break;
       }
 
-      if (!r.ok) { console.warn(`Side ${pageNum} API fejl: ${r.status}`); break; }
+      if (!r.ok) {
+        console.warn(`Side ${pageNum} API fejl: ${r.status}`);
+        send({ type: 'warning', message: `API fejl ${r.status} på side ${pageNum}` });
+        break;
+      }
 
       let data;
       try { data = await r.json(); } catch(e) { break; }
@@ -541,14 +567,115 @@ async function fetchAndSaveOffers() {
     }
   }
 
+  // Supplement med direkte dealer-hentning for kendte butikker
+  console.log('Henter direkte fra kendte dealers...');
+  for (const [name, id] of Object.entries(DEALER_PUBLIC_IDS)) {
+    const extra = await fetchDealerOffers(name, id).catch(e => {
+      console.warn(`Dealer fetch fejl for ${name}:`, e.message);
+      return 0;
+    });
+    totalSaved += extra;
+  }
+
   await db.query('INSERT INTO offer_fetch_log (offer_count, status) VALUES ($1, $2)',
     [totalSaved, 'success']).catch(() => {});
 
-  console.log(`✅ Færdig — ${totalSaved} tilbud gemt (${totalSkipped} kasseret)`);
+  console.log(`✅ Færdig — ${totalSaved} tilbud gemt i alt (${totalSkipped} kasseret fra søgning)`);
   return totalSaved;
 }
 
 // ── CRON JOB — kør hver nat kl. 02:00 ──
+// Hent tilbud direkte fra en specifik dealer via dealer_id
+async function fetchDealerOffers(dealerName, dealerId) {
+  console.log(`Henter tilbud direkte fra ${dealerName} (${dealerId})...`);
+  let saved = 0;
+  let offset = 0;
+  const limit = 96;
+  let hasMore = true;
+
+  while (hasMore) {
+    try {
+      const params = new URLSearchParams({
+        r_locale: 'da_DK',
+        dealer_ids: dealerId,
+        offset,
+        limit
+      });
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      let r;
+      try {
+        r = await fetch(
+          `https://squid-api.tjek.com/v2/offers?${params}`,
+          { headers: { 'Accept': 'application/json', 'X-Api-Av': '0.3.0' }, signal: controller.signal }
+        );
+        clearTimeout(timeout);
+      } catch(e) {
+        clearTimeout(timeout);
+        console.warn(`${dealerName} netværksfejl: ${e.message}`);
+        break;
+      }
+
+      if (!r.ok) {
+        console.warn(`${dealerName} API fejl: ${r.status}`);
+        // Prøv alternativ endpoint
+        const r2 = await fetch(
+          `https://squid-api.tjek.com/v2/offers/search?${new URLSearchParams({
+            r_locale: 'da_DK', query: '', dealer_ids: dealerId, offset, limit,
+            r_lat: 55.6272, r_lng: 12.6019, r_radius: 200000
+          })}`,
+          { headers: { 'Accept': 'application/json', 'X-Api-Av': '0.3.0' } }
+        ).catch(() => null);
+        if (!r2 || !r2.ok) break;
+        r = r2;
+      }
+
+      let data;
+      try { data = await r.json(); } catch(e) { break; }
+
+      const list = Array.isArray(data) ? data : (data.results || []);
+      console.log(`  ${dealerName} offset ${offset}: ${list.length} tilbud`);
+
+      if (list.length === 0) { hasMore = false; break; }
+
+      for (const o of list) {
+        const id = o.id;
+        if (!id) continue;
+        const price = o.pricing?.price != null ? parseFloat(o.pricing.price) : null;
+        if (!price || !o.heading) continue;
+        const category = categorizeOffer(o.heading);
+        if (!category) continue;
+        const origPrice = o.pricing?.pre_price != null ? parseFloat(o.pricing.pre_price) : null;
+        const pctOff = origPrice && price ? Math.round((1 - price / origPrice) * 100) : null;
+        try {
+          await db.query(`
+            INSERT INTO offers (id, name, price, orig_price, pct_off, store, unit, img_url, valid_till, category, fetched_at)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())
+            ON CONFLICT (id) DO UPDATE SET
+              price=$3, orig_price=$4, pct_off=$5, img_url=$8, valid_till=$9, category=$10, fetched_at=NOW()
+          `, [id, o.heading, price, origPrice, pctOff, dealerName,
+              cleanUnitString(o.quantity?.unit || ''),
+              o.images?.view || o.images?.thumb || null,
+              o.run_till || null, category]);
+          saved++;
+        } catch(e) {}
+      }
+
+      if (list.length < limit) { hasMore = false; }
+      else { offset += limit; await new Promise(r => setTimeout(r, 400)); }
+      if (offset > 2000) { hasMore = false; } // Max 2000 per dealer
+
+    } catch(e) {
+      console.warn(`${dealerName} fejl: ${e.message}`);
+      break;
+    }
+  }
+
+  console.log(`  ${dealerName}: ${saved} tilbud gemt`);
+  return saved;
+}
+
 function scheduleNightlyFetch() {
   const now = new Date();
   const next = new Date();
