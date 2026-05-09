@@ -377,7 +377,7 @@ app.get('/api/offers/refresh-stream', async (req, res) => {
   }
 
   res.end();
-}););
+});
 
 // Behold det gamle endpoint som fallback
 app.post('/api/offers/refresh', async (req, res) => {
