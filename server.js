@@ -220,7 +220,7 @@ app.post('/api/prices', requireAuth, async (req, res) => {
 // ── TILBUD — hent fra database (fælles for alle brugere) ──
 app.get('/api/offers', requireAuth, async (req, res) => {
   try {
-    const { query, store } = req.query;
+    const { query, store, category } = req.query;
     let sql = 'SELECT * FROM offers WHERE valid_till > NOW() OR valid_till IS NULL';
     const params = [];
     if (query) {
@@ -231,7 +231,11 @@ app.get('/api/offers', requireAuth, async (req, res) => {
       params.push(store);
       sql += ` AND store = $${params.length}`;
     }
-    sql += ' ORDER BY fetched_at DESC LIMIT 200';
+    if (category) {
+      params.push(category);
+      sql += ` AND category = $${params.length}`;
+    }
+    sql += ' ORDER BY pct_off DESC NULLS LAST, fetched_at DESC LIMIT 300';
     const result = await db.query(sql, params);
 
     // Hvis databasen er tom, hent friske tilbud med det samme
@@ -249,14 +253,13 @@ app.get('/api/offers', requireAuth, async (req, res) => {
   }
 });
 
-// SSE progress stream — sender løbende opdateringer til browseren
+// SSE progress stream — paginering uden søgeord
 app.get('/api/offers/refresh-stream', async (req, res) => {
   const adminKey = req.query.admin_key;
   if (adminKey !== process.env.ADMIN_KEY) {
     return res.status(403).json({ error: 'Adgang nægtet' });
   }
 
-  // Sæt SSE headers
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -268,123 +271,113 @@ app.get('/api/offers/refresh-stream', async (req, res) => {
   }
 
   try {
-    send({ type: 'start', total: SEARCH_TERMS.length, message: 'Starter tilbudshentning...' });
+    send({ type: 'start', message: 'Henter alle dagligvaretilbud nær dit postnummer...' });
 
-    let totalSaved = 0;
-    const seen = new Set();
-
+    // Slet udløbne tilbud
     await db.query(`DELETE FROM offers WHERE valid_till < NOW() - INTERVAL '1 day'`)
       .catch(e => console.warn('Slet fejl:', e.message));
 
-    for (let i = 0; i < SEARCH_TERMS.length; i++) {
-      const term = SEARCH_TERMS[i];
-      send({ type: 'progress', current: i + 1, total: SEARCH_TERMS.length, term, message: `Henter "${term}"...` });
+    let totalSaved = 0;
+    let totalSkipped = 0;
+    const seen = new Set();
+    let offset = 0;
+    const limit = 96;
+    let pageNum = 0;
+    let hasMore = true;
 
+    while (hasMore) {
+      pageNum++;
+      const params = new URLSearchParams({
+        r_locale: 'da_DK', offset, limit
+      });
+
+      send({ type: 'progress', current: pageNum, total: '?', message: `Henter side ${pageNum} (${offset}-${offset+limit})...` });
+
+      let r;
       try {
-        const params = new URLSearchParams({
-          r_locale: 'da_DK', query: term,
-          offset: 0, limit: 48,
-          r_lat: 55.676, r_lng: 12.568, r_radius: 50000
-        });
-
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 12000);
-        let r;
-        try {
-          r = await fetch(
-            `https://squid-api.tjek.com/v2/offers/search?${params}`,
-            { headers: { 'Accept': 'application/json', 'X-Api-Av': '0.3.0' }, signal: controller.signal }
-          );
-          clearTimeout(timeout);
-        } catch(fetchErr) {
-          clearTimeout(timeout);
-          send({ type: 'warning', term, message: `Netværksfejl for "${term}" — springer over` });
-          continue;
-        }
-
-        if (!r.ok) {
-          send({ type: 'warning', term, message: `API svarede ${r.status} for "${term}"` });
-          continue;
-        }
-
-        let data;
-        try { data = await r.json(); }
-        catch(e) { send({ type: 'warning', term, message: `JSON fejl for "${term}"` }); continue; }
-
-        const list = Array.isArray(data) ? data : (data.results || []);
-        let termSaved = 0;
-
-        // Log første tilbud så vi kan se strukturen
-        if (list.length > 0) {
-          const sample = list[0];
-          console.log(`Sample fra "${term}":`, JSON.stringify({
-            id: sample.id,
-            heading: sample.heading,
-            pricing: sample.pricing,
-            has_price: sample.pricing?.price
-          }));
-        }
-
-        for (const o of list) {
-          // Brug id eller generer et unikt id baseret på navn+butik
-          const id = o.id || (o.heading + '|' + (o.branding?.name || '') + '|' + (o.pricing?.price || '')).toLowerCase().replace(/[^a-zæøå0-9|]/g, '').substring(0, 80);
-          if (!id || seen.has(id)) continue;
-          seen.add(id);
-          // API returnerer pris direkte i DKK (ikke i øre)
-          const price = o.pricing?.price != null ? parseFloat(o.pricing.price) : null;
-          if (!price || !o.heading) continue;
-
-          const origPrice = o.pricing?.pre_price != null ? parseFloat(o.pricing.pre_price) : null;
-          const pctOff = origPrice && price ? Math.round((1 - price / origPrice) * 100) : null;
-
-          // Rens unit-feltet — eTilbudsavis returnerer JSON-lignende strenge
-          const rawUnit = o.quantity?.unit || '';
-          const cleanUnit = cleanUnitString(rawUnit);
-
-          try {
-            await db.query(`
-              INSERT INTO offers (id, name, price, orig_price, pct_off, store, unit, img_url, valid_till, category, fetched_at)
-              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())
-              ON CONFLICT (id) DO UPDATE SET price=$3, orig_price=$4, pct_off=$5, img_url=$8, valid_till=$9, fetched_at=NOW()
-            `, [
-              id, o.heading, price,
-              origPrice,
-              pctOff,
-              o.branding?.name || 'Ukendt',
-              cleanUnit || null,
-              o.images?.view || o.images?.thumb || null,
-              o.run_till || null,
-              term
-            ]);
-            termSaved++;
-            totalSaved++;
-          } catch(dbErr) {
-            if (!dbErr.message.includes('duplicate')) {
-              console.error('DB insert fejl:', dbErr.message, 'for id:', id);
-              send({ type: 'warning', term, message: `DB fejl: ${dbErr.message.substring(0,80)}` });
-            }
-          }
-        }
-
-        send({ type: 'term_done', term, found: list.length, saved: termSaved, total_so_far: totalSaved });
-        await new Promise(r => setTimeout(r, 400));
-
-      } catch(e) {
-        send({ type: 'warning', term, message: `Fejl for "${term}": ${e.message}` });
+        const timeout = setTimeout(() => controller.abort(), 15000);
+        r = await fetch(
+          `https://squid-api.tjek.com/v2/offers/search?${params}`,
+          { headers: { 'Accept': 'application/json', 'X-Api-Av': '0.3.0' }, signal: controller.signal }
+        );
+        clearTimeout(timeout);
+      } catch(fetchErr) {
+        send({ type: 'warning', message: `Netværksfejl side ${pageNum}: ${fetchErr.message}` });
+        break;
       }
+
+      if (!r.ok) {
+        send({ type: 'warning', message: `API fejl ${r.status} på side ${pageNum}` });
+        break;
+      }
+
+      let data;
+      try { data = await r.json(); }
+      catch(e) { send({ type: 'warning', message: `JSON fejl side ${pageNum}` }); break; }
+
+      const list = Array.isArray(data) ? data : (data.results || []);
+
+      if (list.length === 0) { hasMore = false; break; }
+
+      let pageSaved = 0;
+      for (const o of list) {
+        const id = o.id;
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+
+        const price = o.pricing?.price != null ? parseFloat(o.pricing.price) : null;
+        if (!price || !o.heading) continue;
+
+        const storeName = o.branding?.name || '';
+        if (!isValidStore(storeName)) { totalSkipped++; continue; }
+
+        const category = categorizeOffer(o.heading);
+        if (!category) { totalSkipped++; continue; }
+
+        const origPrice = o.pricing?.pre_price != null ? parseFloat(o.pricing.pre_price) : null;
+        const pctOff = origPrice && price ? Math.round((1 - price / origPrice) * 100) : null;
+
+        try {
+          await db.query(`
+            INSERT INTO offers (id, name, price, orig_price, pct_off, store, unit, img_url, valid_till, category, fetched_at)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())
+            ON CONFLICT (id) DO UPDATE SET
+              price=$3, orig_price=$4, pct_off=$5, img_url=$8, valid_till=$9, category=$10, fetched_at=NOW()
+          `, [
+            id, o.heading, price, origPrice, pctOff, storeName,
+            cleanUnitString(o.quantity?.unit || ''),
+            o.images?.view || o.images?.thumb || null,
+            o.run_till || null, category
+          ]);
+          pageSaved++;
+          totalSaved++;
+        } catch(dbErr) {}
+      }
+
+      send({ type: 'term_done', term: `Side ${pageNum}`, found: list.length, saved: pageSaved, total_so_far: totalSaved });
+
+      if (list.length < limit) {
+        hasMore = false;
+      } else {
+        offset += limit;
+        await new Promise(r => setTimeout(r, 400));
+      }
+
+      if (pageNum >= 50) { hasMore = false; }
     }
 
     await db.query('INSERT INTO offer_fetch_log (offer_count, status) VALUES ($1, $2)', [totalSaved, 'success'])
       .catch(() => {});
 
-    send({ type: 'done', total_saved: totalSaved, message: `✅ Færdig! ${totalSaved} tilbud gemt i database.` });
+    send({ type: 'done', total_saved: totalSaved, message: `✅ Færdig! ${totalSaved} dagligvaretilbud gemt fra ${pageNum} sider.` });
 
   } catch(e) {
     send({ type: 'error', message: e.message });
   }
 
   res.end();
-});
+}););
 
 // Behold det gamle endpoint som fallback
 app.post('/api/offers/refresh', async (req, res) => {
@@ -411,161 +404,148 @@ app.get('/api/offers/status', requireAuth, async (req, res) => {
 });
 
 // ── TILBUD HENTNING (kernes) ──
-const SEARCH_TERMS = [
-  'kylling', 'oksekød', 'laks', 'svinekød', 'fisk',
-  'pasta', 'ris', 'brød', 'kartofler', 'grøntsager',
-  'mælk', 'ost', 'æg', 'smør', 'fløde',
-  'frugt', 'tomater', 'løg', 'gulerødder', 'salat'
-];
+// Dagligvare-kategorier med nøgleord til automatisk kategorisering
+const HOUSEHOLD_CATEGORIES = {
+  'kød':         ['kylling','oksekød','hakket','bøf','svin','lam','bacon','pølse','frikadel','schnitzel','kotelet','steg','mørbrad','entrecote','flæsk','and','kalkun','medister','wienerpølse','leverpostej','spegepølse','salami'],
+  'fisk':        ['laks','torsk','tun','rejer','fisk','sild','makrel','rødspætte','hellefisk','reje','musling','blæksprutte','tilapia','pangasius'],
+  'grøntsager':  ['kartofler','gulerod','løg','tomat','salat','broccoli','blomkål','peberfrugt','champignon','spinat','agurk','porre','selleri','squash','aubergine','majs','kål','radise','asparges','artiskok','rødbede','pastinakker','fennikel'],
+  'frugt':       ['æble','banan','appelsin','citron','lime','mango','ananas','jordbær','hindbær','blåbær','grape','pære','fersken','melon','vandmelon','vindrue','frugt','bær','kiwi','granatæble','avocado'],
+  'mejeri':      ['mælk','ost','smør','fløde','yoghurt','skyr','creme fraiche','kefir','fromage','rygeost','kvark','mascarpone','mozzarella','brie','camembert','havarti','danbo','parmesan','ricotta','créme'],
+  'æg':          ['æg'],
+  'brød':        ['brød','rugbrød','bolle','toastbrød','franskbrød','croissant','bagel','ciabatta','baguette','knækbrød','pitabrød','tortillas'],
+  'tørvarer':    ['pasta','spaghetti','penne','ris','mel','sukker','havregryn','musli','cornflakes','linser','kikærter','quinoa','couscous','bulgur','nødder','mandler','rosiner','müsli','gryn','cerealier'],
+  'konserves':   ['dåse','konserves','hakkede tomater','tomatpuré','kokosmælk','oliven','kapers','ansjos','sardiner','syltet','pickles'],
+  'drikkevarer': ['sodavand','cola','juice','saft','vand','øl','vin','kaffe','te','kakao','energidrik','sportsdrik','cider','pepsi','fanta','sprite','tuborg','carlsberg','heineken','cocio','ribena','squash drik','lemonade','limonade'],
+  'krydderier':  ['olie','eddike','soja','ketchup','mayonnaise','sennep','dressing','marinade','buljong','bouillon','karry','paprika','oregano','timian','peber','krydderi','sauce','salsa','pesto','tabasco','worcester','srirachasovs'],
+  'frost':       ['frost','frossen','frosne','ispinde','flødeis','is ','sorbet'],
+  'snacks':      ['chips','popcorn','kiks','nødder','chokolade','slik','vingummi','lakrids','cookie','småkage','snackbar','granola bar'],
+  'personlig pleje': ['shampoo','balsam','konditioner','tandpasta','tandbørste','deodorant','bodylotion','ansigts','barbering','barbergel','barberskum','shower','badegel','sæbe','intimvask','solcreme','læbepomade','håndcreme','fugtighedscreme','rensemælk','toner','micellar','hudpleje','makeupfjerner','neglelak'],
+  'badeværelse': ['toiletpapir','køkkenrulle','papirhåndklæde','vatpinde','vatpads','bind','tampon','hygiejne','servietter','papir','bleer','ble','vådservietter','bleindlæg'],
+  'baby':        ['babymad','babygrød','baby','pampers','huggies','babyolie','babysæbe','babyshampoo','babycreme','diaper'],
+  'rengøring':   ['opvask','vaskepulver','skyllemiddel','rengøring','afkalker','toiletrent','badrens','køkkenrent','wettex','svamp','skuresvamp','klude','handsker gummi','affaldssæk','aluminiumsfolie','husholdningsfilm','bagepapir'],
+  'kæledyr':     ['hundemad','kattemad','kattemad','dyremad','kattegrus','hundesnack','fuglefoder'],
+};
 
-// Renser eTilbudsavis unit-strenge som '{"symbol":"g","si":{"symbol":"kg","factor":0.001}}'
-function cleanUnitString(raw) {
-  if (!raw) return '';
-  // Hvis det ligner JSON, parse det
-  if (raw.startsWith('{') || raw.startsWith('[')) {
-    try {
-      const parsed = JSON.parse(raw);
-      // Brug symbol direkte
-      if (parsed.symbol) return parsed.symbol;
-      if (parsed.si?.symbol) return parsed.si.symbol;
-    } catch(e) {}
-    // Regex fallback — udtræk første "symbol":"xxx"
-    const m = raw.match(/"symbol"\s*:\s*"([^"]+)"/);
-    if (m) return m[1];
-    return '';
+// Kun disse butikker vises
+const VALID_STORES = new Set([
+  'netto','rema 1000','rema1000','lidl','føtex','foetex','bilka',
+  'meny','superbrugsen','brugsen','dagli brugsen','spar','fakta',
+  'irma','365discount','aldi','min købmand','let-køb','letkøb','kvickly'
+]);
+
+
+function categorizeOffer(name) {
+  const n = name.toLowerCase();
+  for (const [cat, keywords] of Object.entries(HOUSEHOLD_CATEGORIES)) {
+    if (keywords.some(kw => n.includes(kw))) return cat;
   }
-  return raw.trim();
+  return null; // null = ikke en dagligvarevare, kassér
+}
+
+function isValidStore(storeName) {
+  if (!storeName) return false;
+  return VALID_STORES.has(storeName.toLowerCase().trim());
 }
 
 async function fetchAndSaveOffers() {
   console.log('Starter tilbudshentning fra eTilbudsavis...');
-  const allOffers = [];
+
+  let totalSaved = 0;
+  let totalSkipped = 0;
   const seen = new Set();
 
-  for (const term of SEARCH_TERMS) {
+  // Slet udløbne tilbud
+  await db.query(`DELETE FROM offers WHERE valid_till < NOW() - INTERVAL '1 day'`)
+    .catch(e => console.warn('Slet fejl:', e.message));
+
+  // Hent via paginering uden søgeord — alle tilbud i radius
+  let offset = 0;
+  const limit = 96;
+  let pageNum = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    pageNum++;
     try {
       const params = new URLSearchParams({
-        r_locale: 'da_DK',
-        query: term,
-        offset: 0,
-        limit: 48,
-        r_lat: 55.676,
-        r_lng: 12.568,
-        r_radius: 50000
+        r_locale: 'da_DK', offset, limit
       });
 
-      // Timeout efter 10 sekunder
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
-
+      const timeout = setTimeout(() => controller.abort(), 15000);
       let r;
       try {
         r = await fetch(
           `https://squid-api.tjek.com/v2/offers/search?${params}`,
-          {
-            headers: { 'Accept': 'application/json', 'X-Api-Av': '0.3.0' },
-            signal: controller.signal
-          }
+          { headers: { 'Accept': 'application/json', 'X-Api-Av': '0.3.0' }, signal: controller.signal }
         );
         clearTimeout(timeout);
       } catch(fetchErr) {
         clearTimeout(timeout);
-        console.warn(`Netværksfejl for "${term}": ${fetchErr.message}`);
-        continue;
+        console.warn(`Side ${pageNum} netværksfejl: ${fetchErr.message}`);
+        break;
       }
 
-      console.log(`eTilbudsavis svar for "${term}": ${r.status}`);
-      if (!r.ok) {
-        const errText = await r.text().catch(() => '');
-        console.warn(`eTilbudsavis fejlede for "${term}": ${r.status} — ${errText.substring(0,100)}`);
-        continue;
-      }
+      if (!r.ok) { console.warn(`Side ${pageNum} API fejl: ${r.status}`); break; }
 
       let data;
-      try {
-        data = await r.json();
-      } catch(jsonErr) {
-        console.warn(`JSON parse fejl for "${term}": ${jsonErr.message}`);
-        continue;
-      }
-      const list = Array.isArray(data) ? data : (data.results || []);
-      console.log(`  → ${list.length} resultater for "${term}"`);
+      try { data = await r.json(); } catch(e) { break; }
 
-      list.forEach(o => {
-        const id = o.id || Math.random().toString(36).substr(2);
-        if (seen.has(id)) return;
+      const list = Array.isArray(data) ? data : (data.results || []);
+      console.log(`Side ${pageNum} (offset ${offset}): ${list.length} tilbud`);
+
+      if (list.length === 0) { hasMore = false; break; }
+
+      for (const o of list) {
+        const id = o.id;
+        if (!id || seen.has(id)) continue;
         seen.add(id);
 
-        // API returnerer pris direkte i DKK
         const price = o.pricing?.price != null ? parseFloat(o.pricing.price) : null;
-        if (!price || !o.heading) return;
+        if (!price || !o.heading) continue;
+
+        const storeName = o.branding?.name || '';
+        if (!isValidStore(storeName)) { totalSkipped++; continue; }
+
+        const category = categorizeOffer(o.heading);
+        if (!category) { totalSkipped++; continue; }
 
         const origPrice = o.pricing?.pre_price != null ? parseFloat(o.pricing.pre_price) : null;
-        allOffers.push({
-          id,
-          name: o.heading,
-          price,
-          orig_price: origPrice,
-          pct_off: origPrice && price ? Math.round((1 - price / origPrice) * 100) : null,
-          store: o.branding?.name || 'Ukendt',
-          unit: cleanUnitString(o.quantity?.unit || '') || null,
-          img_url: o.images?.view || o.images?.thumb || null,
-          valid_till: o.run_till || null,
-          category: term
-        });
-      });
+        const pctOff = origPrice && price ? Math.round((1 - price / origPrice) * 100) : null;
 
-      // Respektér API'et — vent lidt mellem kald
-      await new Promise(r => setTimeout(r, 300));
-
-    } catch(e) {
-      console.warn(`Fejl for "${term}":`, e.message);
-    }
-  }
-
-  console.log(`Hentning færdig — ${allOffers.length} tilbud klar til database`);
-
-  // Gem i database
-  if (allOffers.length > 0) {
-    console.log('Starter database-gem...');
-    const client = await db.connect();
-    try {
-      await client.query('BEGIN');
-
-      // Slet gamle tilbud der er udløbet
-      await client.query(`DELETE FROM offers WHERE valid_till < NOW() - INTERVAL '1 day'`);
-
-      // Indsæt nye tilbud
-      for (const o of allOffers) {
-        await client.query(`
-          INSERT INTO offers (id, name, price, orig_price, pct_off, store, unit, img_url, valid_till, category, fetched_at)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())
-          ON CONFLICT (id) DO UPDATE SET
-            price=$3, orig_price=$4, pct_off=$5, img_url=$8,
-            valid_till=$9, fetched_at=NOW()
-        `, [o.id, o.name, o.price, o.orig_price, o.pct_off, o.store, o.unit, o.img_url, o.valid_till, o.category]);
+        try {
+          await db.query(`
+            INSERT INTO offers (id, name, price, orig_price, pct_off, store, unit, img_url, valid_till, category, fetched_at)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())
+            ON CONFLICT (id) DO UPDATE SET
+              price=$3, orig_price=$4, pct_off=$5, img_url=$8, valid_till=$9, category=$10, fetched_at=NOW()
+          `, [
+            id, o.heading, price, origPrice, pctOff, storeName,
+            cleanUnitString(o.quantity?.unit || ''),
+            o.images?.view || o.images?.thumb || null,
+            o.run_till || null, category
+          ]);
+          totalSaved++;
+        } catch(dbErr) {}
       }
 
-      await client.query('COMMIT');
+      console.log(`  → ${totalSaved} gemt i alt`);
+
+      if (list.length < limit) { hasMore = false; }
+      else { offset += limit; await new Promise(r => setTimeout(r, 400)); }
+      if (pageNum >= 50) { hasMore = false; }
+
     } catch(e) {
-      await client.query('ROLLBACK');
-      throw e;
-    } finally {
-      client.release();
+      console.warn(`Side ${pageNum} fejl: ${e.message}`);
+      break;
     }
-
-    // Log hentningen
-    await db.query(
-      'INSERT INTO offer_fetch_log (offer_count, status) VALUES ($1, $2)',
-      [allOffers.length, 'success']
-    );
-
-    console.log(`✅ ${allOffers.length} tilbud gemt i database`);
-    console.log('Database-gem afsluttet succesfuldt');
   }
 
-  console.log('fetchAndSaveOffers returnerer:', allOffers.length);
-  return allOffers.length;
+  await db.query('INSERT INTO offer_fetch_log (offer_count, status) VALUES ($1, $2)',
+    [totalSaved, 'success']).catch(() => {});
+
+  console.log(`✅ Færdig — ${totalSaved} tilbud gemt (${totalSkipped} kasseret)`);
+  return totalSaved;
 }
 
 // ── CRON JOB — kør hver nat kl. 02:00 ──
