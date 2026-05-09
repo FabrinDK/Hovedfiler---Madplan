@@ -439,11 +439,11 @@ const HOUSEHOLD_CATEGORIES = {
 };
 
 // Verificerede dealer public IDs fra etilbudsavis.dk
-// Kilde: publicId feltet fra etilbudsavis.dk butikssider
 const DEALER_PUBLIC_IDS = {
-  'Netto':        '9ba51',
-  'REMA 1000':    '11deC',
-  // Tilføj flere når vi finder dem
+  'Netto':     '9ba51',
+  'Lidl':      '71c90',
+  'REMA 1000': '11deC',
+  // Føtex og Bilka tilføjes når vi finder IDs
 };
 
 // Kun disse butikker vises
@@ -585,9 +585,29 @@ async function fetchAndSaveOffers() {
 }
 
 // ── CRON JOB — kør hver nat kl. 02:00 ──
-// Hent tilbud direkte fra en specifik dealer via dealer_id
-async function fetchDealerOffers(dealerName, dealerId) {
-  console.log(`Henter tilbud direkte fra ${dealerName} (${dealerId})...`);
+// Hent aktuelle katalog-IDs for en dealer
+async function getDealerCatalogIds(dealerId) {
+  try {
+    const r = await fetch(
+      `https://squid-api.tjek.com/v2/catalogs?dealer_ids=${dealerId}&r_locale=da_DK&order_by=-publication_date&limit=5`,
+      { headers: { 'Accept': 'application/json', 'X-Api-Av': '0.3.0' } }
+    );
+    if (!r.ok) return [];
+    const data = await r.json();
+    const list = Array.isArray(data) ? data : (data.results || []);
+    // Returner kun aktive kataloger
+    const now = new Date();
+    return list
+      .filter(c => new Date(c.run_till) > now)
+      .map(c => c.id);
+  } catch(e) {
+    console.warn(`Kunne ikke hente kataloger for ${dealerId}:`, e.message);
+    return [];
+  }
+}
+
+// Hent tilbud fra et specifikt katalog
+async function fetchCatalogOffers(catalogId, storeName) {
   let saved = 0;
   let offset = 0;
   const limit = 96;
@@ -597,7 +617,7 @@ async function fetchDealerOffers(dealerName, dealerId) {
     try {
       const params = new URLSearchParams({
         r_locale: 'da_DK',
-        dealer_ids: dealerId,
+        catalog_ids: catalogId,
         offset,
         limit
       });
@@ -613,30 +633,15 @@ async function fetchDealerOffers(dealerName, dealerId) {
         clearTimeout(timeout);
       } catch(e) {
         clearTimeout(timeout);
-        console.warn(`${dealerName} netværksfejl: ${e.message}`);
         break;
       }
 
-      if (!r.ok) {
-        console.warn(`${dealerName} API fejl: ${r.status}`);
-        // Prøv alternativ endpoint
-        const r2 = await fetch(
-          `https://squid-api.tjek.com/v2/offers/search?${new URLSearchParams({
-            r_locale: 'da_DK', query: '', dealer_ids: dealerId, offset, limit,
-            r_lat: 55.6272, r_lng: 12.6019, r_radius: 200000
-          })}`,
-          { headers: { 'Accept': 'application/json', 'X-Api-Av': '0.3.0' } }
-        ).catch(() => null);
-        if (!r2 || !r2.ok) break;
-        r = r2;
-      }
+      if (!r.ok) { break; }
 
       let data;
       try { data = await r.json(); } catch(e) { break; }
 
       const list = Array.isArray(data) ? data : (data.results || []);
-      console.log(`  ${dealerName} offset ${offset}: ${list.length} tilbud`);
-
       if (list.length === 0) { hasMore = false; break; }
 
       for (const o of list) {
@@ -644,8 +649,7 @@ async function fetchDealerOffers(dealerName, dealerId) {
         if (!id) continue;
         const price = o.pricing?.price != null ? parseFloat(o.pricing.price) : null;
         if (!price || !o.heading) continue;
-        const category = categorizeOffer(o.heading);
-        if (!category) continue;
+        const category = categorizeOffer(o.heading) || 'andet';
         const origPrice = o.pricing?.pre_price != null ? parseFloat(o.pricing.pre_price) : null;
         const pctOff = origPrice && price ? Math.round((1 - price / origPrice) * 100) : null;
         try {
@@ -654,7 +658,7 @@ async function fetchDealerOffers(dealerName, dealerId) {
             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())
             ON CONFLICT (id) DO UPDATE SET
               price=$3, orig_price=$4, pct_off=$5, img_url=$8, valid_till=$9, category=$10, fetched_at=NOW()
-          `, [id, o.heading, price, origPrice, pctOff, dealerName,
+          `, [id, o.heading, price, origPrice, pctOff, storeName,
               cleanUnitString(o.quantity?.unit || ''),
               o.images?.view || o.images?.thumb || null,
               o.run_till || null, category]);
@@ -663,18 +667,29 @@ async function fetchDealerOffers(dealerName, dealerId) {
       }
 
       if (list.length < limit) { hasMore = false; }
-      else { offset += limit; await new Promise(r => setTimeout(r, 400)); }
-      if (offset > 2000) { hasMore = false; } // Max 2000 per dealer
-
-    } catch(e) {
-      console.warn(`${dealerName} fejl: ${e.message}`);
-      break;
-    }
+      else { offset += limit; await new Promise(r => setTimeout(r, 300)); }
+    } catch(e) { break; }
   }
-
-  console.log(`  ${dealerName}: ${saved} tilbud gemt`);
   return saved;
 }
+
+// Hent alle tilbud for en dealer via dens aktive kataloger
+async function fetchDealerOffers(dealerName, dealerId) {
+  console.log(`Henter kataloger for ${dealerName} (${dealerId})...`);
+  const catalogIds = await getDealerCatalogIds(dealerId);
+  console.log(`  ${dealerName}: ${catalogIds.length} aktive kataloger`);
+
+  let total = 0;
+  for (const catalogId of catalogIds) {
+    const saved = await fetchCatalogOffers(catalogId, dealerName);
+    console.log(`  Katalog ${catalogId}: ${saved} tilbud`);
+    total += saved;
+    await new Promise(r => setTimeout(r, 300));
+  }
+  console.log(`  ${dealerName} i alt: ${total} tilbud`);
+  return total;
+}
+
 
 function scheduleNightlyFetch() {
   const now = new Date();
